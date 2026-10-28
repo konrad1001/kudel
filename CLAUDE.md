@@ -1,27 +1,15 @@
 # Strudel Studio
 
-A personal desktop live-coding environment built on [Strudel](https://strudel.cc), the JavaScript port of TidalCycles. The goal is a fully personalisable Strudel interface first, with DAW-like conveniences layered on later.
+A personal desktop live-coding environment built on [Strudel](https://strudel.cc), the JavaScript port of TidalCycles. The goal is a fully personalisable Strudel interface first, with DAW-like conveniences layered on later. The final product will be a live-coding/daw hybrid.
 
 This is a **single-user, personal project**. It will not be distributed. Optimise for my workflow, not for general users.
 
 ## Core principles
 
-1. **Code is the source of truth.** Anything that affects sound must be visible in the code text. UI elements (sliders, faders, sample browser, arrangement views) are *views onto the code*: a UI edit writes back into the editor text. Never introduce hidden UI state that changes what is heard.
+1. **Code is the source of truth.** Anything that affects sound must be visible in the code text. UI elements (sliders, faders, sample browser, arrangement views) are _views onto the code_: a UI edit writes back into the editor text. Never introduce hidden UI state that changes what is heard.
 2. **Don't fork Strudel.** Consume the published `@strudel/*` npm packages. Wrap them; don't patch them. If a patch is unavoidable, use `patch-package` and leave a comment explaining why.
 3. **Personalisable by default.** Themes, keybindings, fonts and layout should be driven by a settings file, not hard-coded.
 4. **Small working increments.** Each change should leave the app runnable.
-
-## Current goal: Strudel running locally
-
-Scaffold the project and get a working editor that plays sound:
-
-- Scaffold with `npm create tauri-app@latest` (React + TypeScript template).
-- Install the `@strudel/*` packages and `superdough`, pinned to exact versions.
-- Wrap `StrudelMirror` in `src/engine/` with `init`, `evaluate` and `stop`.
-- Prebake: `evalScope` over core, mini, tonal, webaudio and codemirror; register synths; load the default Dirt-Samples from the network.
-- Configure the Tauri CSP so remote samples load.
-
-**Done when:** `npm run tauri dev` opens a full-height Strudel editor; Ctrl+Enter plays `s("bd sd [~ bd] sd")` and Ctrl+. stops it; event highlighting works; evaluation errors are shown in the UI; the typecheck passes.
 
 ## Stack
 
