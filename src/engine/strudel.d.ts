@@ -64,6 +64,18 @@ declare module "@strudel/codemirror" {
     [replOption: string]: unknown;
   }
 
+  // Theme registries looked up by name: themes holds CodeMirror extensions,
+  // settings the colours activateTheme turns into CSS variables (--background, ...).
+  export const themes: Record<string, unknown>;
+  export const settings: Record<string, Record<string, unknown>>;
+
+  // nanostores persistentAtom, saved to localStorage as "codemirror-settings";
+  // the StrudelMirror constructor reads it to build the editor.
+  export const codemirrorSettings: {
+    get(): Record<string, unknown>;
+    set(value: Record<string, unknown>): void;
+  };
+
   export class StrudelMirror {
     constructor(options: StrudelMirrorOptions);
     code: string;

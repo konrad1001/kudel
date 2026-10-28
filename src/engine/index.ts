@@ -55,14 +55,58 @@ function ensureAudio(): Promise<void> {
   return audioReady;
 }
 
+// The keys StrudelMirror reads in @strudel/codemirror's defaultSettings.
+export interface EditorSettings {
+  theme: string;
+  fontFamily: string;
+  fontSize: number;
+  keybindings: "codemirror" | "vim" | "emacs" | "vscode";
+  isLineNumbersDisplayed: boolean;
+  isActiveLineHighlighted: boolean;
+  isBracketMatchingEnabled: boolean;
+  isBracketClosingEnabled: boolean;
+  isPatternHighlightingEnabled: boolean;
+  isFlashEnabled: boolean;
+  isAutoCompletionEnabled: boolean;
+  isTooltipEnabled: boolean;
+  isLineWrappingEnabled: boolean;
+  isTabIndentationEnabled: boolean;
+  isMultiCursorEnabled: boolean;
+}
+
+// Colours a theme exposes as CSS variables (--background, --foreground, ...),
+// which the page and Strudel's highlighting use outside the editor.
+export interface ThemeSettings {
+  background: string;
+  foreground: string;
+  caret: string;
+  selection: string;
+  selectionMatch: string;
+  lineHighlight: string;
+  gutterBackground: string;
+  gutterForeground: string;
+  light?: boolean;
+}
+
+// Makes a CodeMirror theme extension selectable by name, like Strudel's built-in themes.
+// Call before init when it is the starting theme.
+export function registerTheme(name: string, extension: unknown, settings: ThemeSettings): void {
+  codemirror.themes[name] = extension;
+  codemirror.settings[name] = { ...settings };
+}
+
 export interface InitOptions {
   initialCode: string;
+  editorSettings: EditorSettings;
 }
 
 // Creates the editor and scheduler once. Later calls are no-ops, because React
 // StrictMode runs effects twice in dev and StrudelMirror has no real teardown.
-export function init({ initialCode }: InitOptions): void {
+export function init({ initialCode, editorSettings }: InitOptions): void {
   if (mirror) return;
+  // StrudelMirror builds the editor from its localStorage-backed settings, so ours go
+  // there first; otherwise whatever was saved last would win on startup.
+  codemirror.codemirrorSettings.set({ ...codemirror.codemirrorSettings.get(), ...editorSettings });
   container = document.createElement("div");
   container.className = "strudel-root";
   mirror = new StrudelMirror({

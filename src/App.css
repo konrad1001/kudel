@@ -1,3 +1,5 @@
+/* --background, --foreground, --gutterForeground, ... are set by the active Strudel theme */
+
 html,
 body,
 #root {
@@ -7,8 +9,11 @@ body,
 
 body {
   overflow: hidden;
-  /* --background is set by the active Strudel theme */
-  background-color: var(--background, #222);
+  background-color: var(--background, #0c0c0c);
+  color: var(--foreground, #cccccc);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  color-scheme: dark;
 }
 
 .app {
@@ -28,15 +33,42 @@ body {
   min-height: 100%;
 }
 
+.strudel-root .cm-scroller {
+  padding-top: 6px;
+  line-height: 1.5;
+}
+
 .error-bar {
   flex: none;
   max-height: 30%;
   overflow: auto;
   padding: 6px 12px;
-  font-family: monospace;
-  font-size: 14px;
   white-space: pre-wrap;
-  color: #ffb4b4;
-  background-color: #4a1515;
-  border-top: 1px solid #a33;
+  color: #f14c4c;
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
+}
+
+.error-bar::before {
+  content: "✗ ";
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #ffffff1f;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #ffffff38;
 }
