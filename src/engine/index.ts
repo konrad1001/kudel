@@ -1,7 +1,33 @@
+import * as core from "@strudel/core";
+import * as mini from "@strudel/mini";
+import * as tonal from "@strudel/tonal";
+import { transpiler } from "@strudel/transpiler";
+import * as webaudio from "@strudel/webaudio";
+import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
+
+const DEFAULT_SAMPLES = "github:tidalcycles/dirt-samples";
 
 let mirror: StrudelMirror | undefined;
 let container: HTMLDivElement | undefined;
+let audioReady: Promise<void> | undefined;
+
+// Everything evaluated code can see, plus the sounds it can play.
+async function prebake(): Promise<void> {
+  await Promise.all([
+    core.evalScope(core, mini, tonal, webaudio, codemirror),
+    webaudio.registerSynthSounds(),
+    webaudio.samples(DEFAULT_SAMPLES),
+  ]);
+}
+
+// Evaluation always follows a key press or click, so the AudioContext may start here.
+// initAudio loads the effect worklets but never resumes the context (its
+// OfflineAudioContext check is always false in superdough 1.3.0), so resume it ourselves.
+function ensureAudio(): Promise<void> {
+  audioReady ??= webaudio.initAudio().then(() => webaudio.getAudioContext().resume());
+  return audioReady;
+}
 
 export interface InitOptions {
   initialCode: string;
@@ -16,7 +42,11 @@ export function init({ initialCode }: InitOptions): void {
   mirror = new StrudelMirror({
     root: container,
     initialCode: import.meta.hot?.data.code ?? initialCode,
-    prebake: async () => {},
+    prebake,
+    beforeEval: ensureAudio,
+    transpiler,
+    defaultOutput: webaudio.webaudioOutput,
+    getTime: () => webaudio.getAudioContext().currentTime,
   });
 }
 

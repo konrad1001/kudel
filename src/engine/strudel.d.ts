@@ -1,6 +1,32 @@
 // Strudel ships no type declarations. These cover only what src/engine uses,
 // written against the installed source; re-check it before widening them.
 
+declare module "@strudel/core" {
+  // Copies every export of each module onto globalThis so evaluated code can use it.
+  export function evalScope(...modules: unknown[]): Promise<unknown[]>;
+}
+
+// Imported only to hand to evalScope; @strudel/mini also registers the mini-notation parser.
+declare module "@strudel/mini" {}
+declare module "@strudel/tonal" {}
+
+declare module "@strudel/transpiler" {
+  export function transpiler(input: string, options?: Record<string, unknown>): unknown;
+}
+
+// @strudel/webaudio re-exports all of superdough.
+declare module "@strudel/webaudio" {
+  export function webaudioOutput(...args: unknown[]): unknown;
+  export function getAudioContext(): AudioContext;
+  export function initAudio(options?: Record<string, unknown>): Promise<void>;
+  export function registerSynthSounds(): void;
+  export function samples(
+    sampleMap: string | Record<string, unknown>,
+    baseUrl?: string,
+    options?: Record<string, unknown>,
+  ): Promise<void>;
+}
+
 declare module "@strudel/codemirror" {
   export interface StrudelMirrorOptions {
     root: HTMLElement;
