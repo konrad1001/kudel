@@ -81,6 +81,7 @@ Where possible, make sound-related logic testable without audio: pure functions 
 - UI-to-code write-back must use minimal CodeMirror transactions (find the literal, replace its value), never full-text replacement, so undo history and cursor position survive.
 - User settings live in Tauri's app config directory (`%APPDATA%\<app-id>\settings.json`), never in the repo.
 - Keep components small; prefer composition over large prop lists.
+- Do not write claude as an author of any commits
 
 ## Licence
 
