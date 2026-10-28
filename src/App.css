@@ -1,4 +1,23 @@
-/* --background, --foreground, --gutterForeground, ... are set by the active Strudel theme */
+/* All app styles, in sections ordered top to bottom as they appear on screen.
+   Search for "== Name" to jump to a section.
+
+   == Theme and page     variables, html/body
+   == Shared             classes used by more than one panel
+   == Layout             workbench and editor column
+   == Menu bar
+   == Explorer
+   == Tabs
+   == Play button
+   == Empty editor       shown when no file is open
+   == Editor             CodeMirror host
+   == Error bar
+   == Scrollbars
+
+   --background, --foreground, --gutterForeground, ... are set by the active Strudel theme. */
+
+/* ================================================================ */
+/* == Theme and page                                                */
+/* ================================================================ */
 
 :root {
   /* Marks whatever is making sound: the playing tab, its file, the stop button. */
@@ -21,11 +40,43 @@ body {
   color-scheme: dark;
 }
 
+/* ================================================================ */
+/* == Shared                                                        */
+/* ================================================================ */
+
+/* The ▶ beside whatever is playing, in a tab and in the explorer. */
+.playing-mark {
+  flex: none;
+  font-size: 9px;
+  color: var(--playing);
+}
+
+/* ================================================================ */
+/* == Layout                                                        */
+/* ================================================================ */
+
 .app {
   height: 100%;
   display: flex;
   flex-direction: column;
 }
+
+.workbench {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.editor-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ================================================================ */
+/* == Menu bar                                                      */
+/* ================================================================ */
 
 .menu-bar {
   flex: none;
@@ -90,18 +141,9 @@ body {
   border-top: 1px solid var(--gutterForeground, #3c3c3c);
 }
 
-.workbench {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-
-.editor-column {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
+/* ================================================================ */
+/* == Explorer                                                      */
+/* ================================================================ */
 
 .explorer {
   position: relative;
@@ -119,6 +161,8 @@ body {
   text-transform: uppercase;
   opacity: 0.6;
 }
+
+/* Folder name and its buttons */
 
 .explorer-header {
   display: flex;
@@ -160,6 +204,8 @@ body {
 .icon-button:hover {
   background-color: var(--selection, #ffffff26);
 }
+
+/* Tree */
 
 .explorer-tree {
   flex: 1;
@@ -216,6 +262,10 @@ body {
   font-size: 10px;
 }
 
+.explorer-row .playing-mark {
+  margin-left: 6px;
+}
+
 .explorer-input {
   flex: 1;
   min-width: 0;
@@ -226,6 +276,8 @@ body {
   outline: none;
   padding: 0 4px;
 }
+
+/* No folder open, or the folder is gone */
 
 .explorer-empty {
   display: flex;
@@ -254,6 +306,8 @@ body {
   border-color: var(--gutterForeground, #3c3c3c);
 }
 
+/* Drag handle on the right edge */
+
 .explorer-resize {
   position: absolute;
   top: 0;
@@ -264,6 +318,11 @@ body {
   z-index: 5;
 }
 
+/* ================================================================ */
+/* == Tabs                                                          */
+/* ================================================================ */
+
+/* The strip above the editor: tabs on the left, the play button on the right. */
 .editor-header {
   flex: none;
   display: flex;
@@ -277,41 +336,6 @@ body {
   min-width: 0;
   display: flex;
   overflow-x: auto;
-}
-
-.editor-actions {
-  flex: none;
-  display: flex;
-  align-items: center;
-  padding: 0 8px;
-}
-
-.play-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 24px;
-  padding: 0;
-  color: inherit;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: default;
-}
-
-.play-button:hover {
-  background-color: var(--selection, #ffffff26);
-}
-
-.play-button.playing {
-  color: var(--playing);
-  /* background-color: color-mix(in srgb, var(--playing) 15%, transparent); */
-  /* border-color: color-mix(in srgb, var(--playing) 50%, transparent); */
-}
-
-.play-button.playing:hover {
-  background-color: color-mix(in srgb, var(--playing) 25%, transparent);
 }
 
 .tab-bar::-webkit-scrollbar {
@@ -345,6 +369,7 @@ body {
   border-top-color: var(--caret, #f2f2f2);
 }
 
+/* After .tab.active, so a playing tab's border wins when it is also active. */
 .tab.playing {
   border-top-color: var(--playing);
 }
@@ -353,15 +378,7 @@ body {
   color: var(--playing);
 }
 
-.playing-mark {
-  flex: none;
-  font-size: 9px;
-  color: var(--playing);
-}
-
-.explorer-row .playing-mark {
-  margin-left: 6px;
-}
+/* Close button */
 
 .tab-close {
   display: flex;
@@ -413,6 +430,49 @@ body {
   display: inline;
 }
 
+/* ================================================================ */
+/* == Play button                                                   */
+/* ================================================================ */
+
+.editor-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.play-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: default;
+}
+
+.play-button:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.play-button.playing {
+  color: var(--playing);
+  /* background-color: color-mix(in srgb, var(--playing) 15%, transparent); */
+  /* border-color: color-mix(in srgb, var(--playing) 50%, transparent); */
+}
+
+.play-button.playing:hover {
+  background-color: color-mix(in srgb, var(--playing) 25%, transparent);
+}
+
+/* ================================================================ */
+/* == Empty editor                                                  */
+/* ================================================================ */
+
 .editor-empty {
   flex: 1;
   min-height: 0;
@@ -459,6 +519,11 @@ body {
   opacity: 0.7;
 }
 
+/* ================================================================ */
+/* == Editor                                                        */
+/* ================================================================ */
+
+/* .editor-host is ours; .strudel-root is the element the engine attaches inside it. */
 .editor-host {
   flex: 1;
   min-height: 0;
@@ -475,6 +540,10 @@ body {
   line-height: 1.5;
 }
 
+/* ================================================================ */
+/* == Error bar                                                     */
+/* ================================================================ */
+
 .error-bar {
   flex: none;
   max-height: 30%;
@@ -488,6 +557,10 @@ body {
 .error-bar::before {
   content: "✗ ";
 }
+
+/* ================================================================ */
+/* == Scrollbars                                                    */
+/* ================================================================ */
 
 ::-webkit-scrollbar {
   width: 10px;
