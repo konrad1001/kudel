@@ -71,8 +71,11 @@ Pin **exact** versions of every `@strudel/*` package and `superdough` in `packag
 ## Known gotchas
 
 - **React StrictMode double-mounts effects** in dev. The `StrudelMirror` instance must be created once (guard with a ref or module-level singleton), or you get two editors and two schedulers playing at once.
-- **Audio requires a user gesture.** WebView2 follows Chromium autoplay rules. Nothing plays until the first click; use `initAudioOnFirstClick` (or the current equivalent).
-- **Tauri CSP** can block remote sample fetches and blob URLs. If sounds silently fail to load, check `app.security` in `tauri.conf.json` first.
+- **Audio requires a user gesture.** WebView2 follows Chromium autoplay rules. `initAudioOnFirstClick` only listens for `mousedown`, so the engine instead runs `initAudio` in `beforeEval` (every evaluation follows a key press or click). superdough 1.3.0's `initAudio` never actually calls `resume()` (its `OfflineAudioContext` check is always false), so the engine resumes the context itself.
+- **Tauri CSP** can block remote sample fetches and blob URLs. If sounds silently fail to load, check `app.security` in `tauri.conf.json` first. The policy needs `'unsafe-eval'` (Strudel evaluates code with `Function`) and `data:` in `script-src` (superdough's AudioWorklets are `data:` URLs), and `'unsafe-inline'` in `style-src` (CodeMirror style tags). Tauri's nonce injection is disabled for those two directives because a nonce makes `'unsafe-inline'` ignored. Add new hosts to `connect-src` in both `csp` and `devCsp`.
+- **No TypeScript types.** No `@strudel/*` package ships declarations. `src/engine/strudel.d.ts` declares only what the engine uses; extend it from the installed source, not from memory.
+- **Runtime errors bypass repl state.** In core 1.2.6 `repl` doesn't pass `onError` to the scheduler, so errors while playing (a throwing pattern, an unknown sound) only reach Strudel's logger. The engine listens for its `strudel.log` document event to show them.
+- **Hidden editor settings.** `@strudel/codemirror` persists its editor settings (theme, font, keybindings) in `localStorage` under `codemirror-settings`. The settings work must drive these from our settings file through StrudelMirror's settings methods.
 - **Asset protocol scope.** Local files are only reachable via `convertFileSrc` if their path is inside the configured `assetProtocol.scope`.
 - **Default samples load from the network**, so the app isn't offline-capable until local samples are added.
 
