@@ -73,6 +73,7 @@ body {
   gap: 24px;
   padding: 4px 12px;
   text-align: left;
+  white-space: nowrap;
 }
 
 .menu-shortcut {
@@ -252,6 +253,149 @@ body {
   width: 6px;
   cursor: ew-resize;
   z-index: 5;
+}
+
+.tab-bar {
+  flex: none;
+  display: flex;
+  overflow-x: auto;
+  background-color: var(--lineHighlight, #ffffff08);
+  border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
+  user-select: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  height: 3px;
+}
+
+.tab {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 6px 0 12px;
+  border-right: 1px solid var(--gutterForeground, #3c3c3c);
+  border-top: 1px solid transparent;
+  cursor: default;
+}
+
+.tab-title {
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
+.tab:hover .tab-title,
+.tab.active .tab-title {
+  opacity: 1;
+}
+
+.tab.active {
+  background-color: var(--background, #0c0c0c);
+  border-top-color: var(--caret, #f2f2f2);
+  /* Covers the bar's bottom border so the tab joins the editor. */
+  margin-bottom: -1px;
+}
+
+.tab-playing {
+  font-size: 9px;
+  color: #8fd16a;
+}
+
+.tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: default;
+  visibility: hidden;
+}
+
+.tab-close:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.tab.active .tab-close,
+.tab:hover .tab-close,
+.tab.dirty .tab-close {
+  visibility: visible;
+}
+
+.tab-x {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.tab-dot {
+  display: none;
+  font-size: 10px;
+}
+
+/* An unsaved tab shows a dot, which turns into the close button on hover. */
+.tab.dirty .tab-dot {
+  display: inline;
+}
+
+.tab.dirty .tab-x,
+.tab.dirty .tab-close:hover .tab-dot {
+  display: none;
+}
+
+.tab.dirty .tab-close:hover .tab-x {
+  display: inline;
+}
+
+.editor-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  user-select: none;
+}
+
+.editor-empty-name {
+  font-size: 28px;
+  letter-spacing: 0.04em;
+  opacity: 0.15;
+}
+
+.editor-empty-actions {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  opacity: 0.6;
+}
+
+.editor-empty-action {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 32px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  cursor: default;
+}
+
+.editor-empty-action:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.editor-empty-action dt {
+  text-align: right;
+}
+
+.editor-empty-action dd {
+  margin: 0;
+  opacity: 0.7;
 }
 
 .editor-host {

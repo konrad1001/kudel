@@ -81,6 +81,11 @@ declare module "@strudel/codemirror" {
     // The CodeMirror view; its update listener keeps `code` in step with the document.
     editor: import("@codemirror/view").EditorView;
     code: string;
+    // The repl from @strudel/core/repl.mjs; setCode only updates its dirty tracking.
+    repl: {
+      scheduler: { started: boolean };
+      setCode?(code: string): void;
+    };
     evaluate(autostart?: boolean): Promise<void>;
     stop(): Promise<void>;
     // Only removes StrudelMirror's document listeners; the editor and scheduler live on.

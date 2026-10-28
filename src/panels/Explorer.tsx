@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { createFileIn, openFile, openFolder, openPath } from "../files/actions";
-import { useDocument } from "../files/documentStore";
+import { selectActiveTab, useTabs } from "../files/tabsStore";
 import {
   cancelNewFile,
   collapseAll,
@@ -82,8 +82,8 @@ function DirChildren({ dir, depth }: { dir: string; depth: number }) {
 
 function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; depth: number }) {
   const expanded = useExplorer((s) => !!s.expanded[entry.path]);
-  const active = useDocument((s) => samePath(s.filePath, entry.path));
-  const dirty = useDocument((s) => s.dirty);
+  const active = useTabs((s) => samePath(selectActiveTab(s)?.filePath ?? null, entry.path));
+  const dirty = useTabs((s) => s.tabs.some((tab) => tab.dirty && samePath(tab.filePath, entry.path)));
   const openable = entry.isDir || isCodeFile(entry.name);
 
   const onClick = () => {
@@ -109,7 +109,7 @@ function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; d
       >
         <span className={`chevron${expanded ? " open" : ""}`}>{entry.isDir && CHEVRON}</span>
         <span className="explorer-name">{entry.name}</span>
-        {active && dirty && <span className="dirty-dot">●</span>}
+        {dirty && <span className="dirty-dot">●</span>}
       </div>
       {entry.isDir && expanded && <DirChildren dir={entry.path} depth={depth + 1} />}
     </>

@@ -38,9 +38,12 @@ describe("withDefaultExtension", () => {
 });
 
 describe("windowTitle", () => {
-  it("shows the file name and an unsaved marker", () => {
-    expect(windowTitle("C:\\music\\acid.strudel", true)).toBe("● acid.strudel - Strudel Studio");
-    expect(windowTitle("C:\\music\\acid.strudel", false)).toBe("acid.strudel - Strudel Studio");
-    expect(windowTitle(null, false)).toBe("Untitled - Strudel Studio");
+  it("shows the tab title and an unsaved marker", () => {
+    expect(windowTitle("acid.strudel", true)).toBe("● acid.strudel - Strudel Studio");
+    expect(windowTitle("Untitled-1", false)).toBe("Untitled-1 - Strudel Studio");
+  });
+
+  it("shows only the app name with no editor open", () => {
+    expect(windowTitle(null, false)).toBe("Strudel Studio");
   });
 });

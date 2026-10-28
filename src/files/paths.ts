@@ -23,7 +23,8 @@ export function withDefaultExtension(name: string): string {
   return /\.[^.]+$/.test(trimmed) ? trimmed : `${trimmed}.strudel`;
 }
 
-export function windowTitle(filePath: string | null, dirty: boolean): string {
-  const name = filePath ? baseName(filePath) : "Untitled";
+// `name` is the active tab's title, or null when no editor is open.
+export function windowTitle(name: string | null, dirty: boolean): string {
+  if (name === null) return "Strudel Studio";
   return `${dirty ? "● " : ""}${name} - Strudel Studio`;
 }

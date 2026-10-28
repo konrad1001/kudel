@@ -13,10 +13,11 @@ A reload, crash or closed window currently throws the code away. Fix that before
 - [ ] **Autosave and restore:** save the buffer to the app data directory a few seconds after each edit and on close; reopen it, with the cursor position, on startup.
 - [x] **Open / Save / Save As / New** with native dialogs (Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+N). Pick a file extension (`.strudel` or `.js`).
 - [x] **Explorer sidebar** (VS Code style): open a folder (Ctrl+Shift+O), browse it, click to open, New File, toggle with Ctrl+B.
+- [x] **Tabs**: open files stay open in a tab bar (Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+W, middle-click), each with its own undo history; a centred message when none is open; ▶ marks the tab that is playing.
 - [ ] **Recent files** list (and recent folders; reopen the last folder on startup).
 - [x] **Window title** shows the file name and an unsaved-changes marker (`● name.strudel - Strudel Studio`).
 - [ ] Ask before closing or opening another file over unsaved changes. (Opening another file asks; closing the window doesn't yet.)
-- [ ] Loading a file replaces the editor content as one undoable transaction, without evaluating it.
+- [x] Loading a file never evaluates it. (Superseded: each file opens in its own tab with a fresh undo history, rather than replacing the editor text as an undoable edit.)
 
 **Done when:** killing the app mid-edit and restarting brings back the exact code and cursor position; files open and save through native dialogs; the title shows the file and whether it's dirty; `npx vitest run` passes.
 

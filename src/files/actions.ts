@@ -1,6 +1,5 @@
 import * as engine from "../engine";
 import type { Action } from "../shortcuts";
-import { useDocument } from "./documentStore";
 import * as explorer from "./explorerStore";
 import {
   askToSave,
@@ -12,14 +11,16 @@ import {
   showError,
   writeTextFile,
 } from "./native";
-import { baseName, samePath, withDefaultExtension } from "./paths";
-import { decodeFile, encodeFile } from "./text";
+import { samePath, withDefaultExtension } from "./paths";
+import { activeAfterClose, cycleTab, insertIndex, nextUntitled, tabTitle, type Tab } from "./tabs";
+import { selectActiveTab, updateTab, useTabs } from "./tabsStore";
+import { decodeFile, encodeFile, type LineEnding } from "./text";
 
 let busy = false;
 
 // One file operation at a time (a held Ctrl+S must not stack dialogs); errors go to
 // a message box, and the editor gets focus back afterwards.
-function fileAction<A extends unknown[]>(run: (...args: A) => Promise<void>) {
+function fileAction<A extends unknown[]>(run: (...args: A) => Promise<unknown>) {
   return async (...args: A): Promise<void> => {
     if (busy) return;
     busy = true;
@@ -34,48 +35,103 @@ function fileAction<A extends unknown[]>(run: (...args: A) => Promise<void>) {
   };
 }
 
-async function writeTo(path: string): Promise<void> {
-  const code = engine.getCode();
-  await writeTextFile(path, encodeFile(code, useDocument.getState().lineEnding));
-  useDocument.setState({ filePath: path, savedCode: code, dirty: false });
-  await explorer.refresh();
+let lastTabId = 0;
+
+function activate(id: string | null): void {
+  engine.showDoc(id);
+  useTabs.setState({ activeId: id });
 }
 
+function openTab(code: string, filePath: string | null, lineEnding: LineEnding): void {
+  const id = `tab-${++lastTabId}`;
+  engine.openDoc(id, code);
+  const { tabs, activeId } = useTabs.getState();
+  const tab: Tab = {
+    id,
+    filePath,
+    untitled: filePath ? null : nextUntitled(tabs),
+    lineEnding,
+    savedCode: code,
+    dirty: false,
+  };
+  const at = insertIndex(
+    tabs.map((t) => t.id),
+    activeId,
+  );
+  useTabs.setState({ tabs: [...tabs.slice(0, at), tab, ...tabs.slice(at)] });
+  activate(id);
+}
+
+// Opens `path` in a new tab, or switches to the tab that already has it.
+async function load(path: string): Promise<void> {
+  const open = useTabs.getState().tabs.find((tab) => samePath(tab.filePath, path));
+  if (open) {
+    activate(open.id);
+    return;
+  }
+  const { code, lineEnding } = decodeFile(await readTextFile(path));
+  openTab(code, path, lineEnding);
+}
+
+// Saves to `path`, or to the tab's own file, asking for one if it has none.
 // Resolves to false when there was nowhere to save (the dialog was cancelled).
-async function save(): Promise<boolean> {
-  const { filePath } = useDocument.getState();
-  const path = filePath ?? (await pickSavePath("untitled.strudel"));
-  if (!path) return false;
-  await writeTo(path);
+async function save(tab: Tab, path?: string | null): Promise<boolean> {
+  const target = path ?? tab.filePath ?? (await pickSavePath(`${tabTitle(tab)}.strudel`));
+  if (!target) return false;
+  const code = engine.getDocCode(tab.id);
+  await writeTextFile(target, encodeFile(code, tab.lineEnding));
+  updateTab(tab.id, { filePath: target, untitled: null, savedCode: code, dirty: false });
+  await explorer.refresh();
   return true;
 }
 
-// Before the editor text is replaced: true to go ahead, false to keep the current text.
-async function confirmDiscard(): Promise<boolean> {
-  const { dirty, filePath } = useDocument.getState();
-  if (!dirty) return true;
-  const choice = await askToSave(filePath ? baseName(filePath) : "Untitled");
-  if (choice === "save") return save();
-  return choice === "discard";
+// Resolves to false when the tab stays open (the user cancelled).
+async function close(id: string): Promise<boolean> {
+  const tab = useTabs.getState().tabs.find((t) => t.id === id);
+  if (!tab) return true;
+  if (tab.dirty) {
+    const choice = await askToSave(tabTitle(tab));
+    if (choice === "cancel") return false;
+    if (choice === "save" && !(await save(tab))) return false;
+  }
+  const { tabs, activeId } = useTabs.getState();
+  const nextActive = activeAfterClose(
+    tabs.map((t) => t.id),
+    id,
+    activeId,
+  );
+  engine.closeDoc(id);
+  useTabs.setState({ tabs: tabs.filter((t) => t.id !== id) });
+  if (nextActive !== activeId || activeId === id) activate(nextActive);
+  return true;
 }
 
-function replaceDocument(code: string, filePath: string | null, lineEnding: "\n" | "\r\n"): void {
-  useDocument.setState({ filePath, lineEnding, savedCode: code, dirty: false });
-  engine.loadCode(code);
-}
-
-async function load(path: string): Promise<void> {
-  if (samePath(path, useDocument.getState().filePath)) return;
-  if (!(await confirmDiscard())) return;
-  const { code, lineEnding } = decodeFile(await readTextFile(path));
-  replaceDocument(code, path, lineEnding);
+function withActiveTab(run: (tab: Tab) => Promise<unknown>) {
+  return fileAction(async () => {
+    const tab = selectActiveTab(useTabs.getState());
+    if (tab) await run(tab);
+  });
 }
 
 export const openPath = fileAction(load);
+export const closeTab = fileAction(close);
 
-export const newFile = fileAction(async () => {
-  if (await confirmDiscard()) replaceDocument("", null, "\n");
-});
+export function activateTab(id: string): void {
+  activate(id);
+  engine.focusEditor();
+}
+
+function cycle(step: 1 | -1): void {
+  const { tabs, activeId } = useTabs.getState();
+  const next = cycleTab(
+    tabs.map((t) => t.id),
+    activeId,
+    step,
+  );
+  if (next) activateTab(next);
+}
+
+export const newFile = fileAction(async () => openTab("", null, "\n"));
 
 export const openFile = fileAction(async () => {
   const path = await pickFileToOpen();
@@ -94,14 +150,14 @@ export const createFileIn = fileAction(async (dir: string, name: string) => {
   await load(path);
 });
 
-export const saveFile = fileAction(async () => {
-  await save();
+export const saveFile = withActiveTab((tab) => save(tab));
+
+export const saveFileAs = withActiveTab(async (tab) => {
+  const path = await pickSavePath(tab.filePath ?? `${tabTitle(tab)}.strudel`);
+  if (path) await save(tab, path);
 });
 
-export const saveFileAs = fileAction(async () => {
-  const path = await pickSavePath(useDocument.getState().filePath ?? "untitled.strudel");
-  if (path) await writeTo(path);
-});
+export const closeActiveTab = withActiveTab((tab) => close(tab.id));
 
 export const FILE_ACTIONS: Action[][] = [
   [
@@ -113,9 +169,16 @@ export const FILE_ACTIONS: Action[][] = [
     { label: "Save", shortcut: "Ctrl+S", run: saveFile },
     { label: "Save As…", shortcut: "Ctrl+Shift+S", run: saveFileAs },
   ],
-  [{ label: "Close Folder", run: explorer.closeFolder }],
+  [
+    { label: "Close Editor", shortcut: "Ctrl+W", run: closeActiveTab },
+    { label: "Close Folder", run: explorer.closeFolder },
+  ],
 ];
 
 export const VIEW_ACTIONS: Action[][] = [
   [{ label: "Toggle Explorer", shortcut: "Ctrl+B", run: explorer.toggleExplorer }],
+  [
+    { label: "Next Editor", shortcut: "Ctrl+Tab", run: () => cycle(1) },
+    { label: "Previous Editor", shortcut: "Ctrl+Shift+Tab", run: () => cycle(-1) },
+  ],
 ];

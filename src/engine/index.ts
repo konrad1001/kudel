@@ -6,7 +6,7 @@ import * as webaudio from "@strudel/webaudio";
 import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
 import * as soundfonts from "@strudel/soundfonts";
-import { StateEffect } from "@codemirror/state";
+import { EditorState, StateEffect, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
 import "./piano";
@@ -25,6 +25,29 @@ let shownError: string | undefined;
 
 export type CodeListener = (code: string) => void;
 const codeListeners = new Set<CodeListener>();
+
+// Open documents by id. There is one editor: the shown document lives in the view,
+// the others keep their whole editor state (text, cursor, undo history, Strudel's
+// highlights) here until they are shown again.
+interface StoredDoc {
+  state: EditorState;
+  scrollTop: number;
+}
+const docs = new Map<string, StoredDoc>();
+let shownDoc: string | null = null;
+// An empty state with every extension the editor uses; new documents start from it.
+let blankState: EditorState | undefined;
+
+// The document whose code was last evaluated while the sound is running.
+export type PlayingListener = (docId: string | null) => void;
+const playingListeners = new Set<PlayingListener>();
+let playingDoc: string | null = null;
+
+function setPlaying(docId: string | null): void {
+  if (docId === playingDoc) return;
+  playingDoc = docId;
+  playingListeners.forEach((listener) => listener(docId));
+}
 
 function publishError(): void {
   const next = evalError ?? runtimeError;
@@ -101,13 +124,13 @@ export function registerTheme(name: string, extension: unknown, settings: ThemeS
 }
 
 export interface InitOptions {
-  initialCode: string;
   editorSettings: EditorSettings;
 }
 
-// Creates the editor and scheduler once. Later calls are no-ops, because React
-// StrictMode runs effects twice in dev and StrudelMirror has no real teardown.
-export function init({ initialCode, editorSettings }: InitOptions): void {
+// Creates the editor and scheduler once, with no document shown. Later calls are
+// no-ops, because React StrictMode runs effects twice in dev and StrudelMirror has
+// no real teardown.
+export function init({ editorSettings }: InitOptions): void {
   if (mirror) return;
   // StrudelMirror builds the editor from its localStorage-backed settings, so ours go
   // there first; otherwise whatever was saved last would win on startup.
@@ -116,7 +139,7 @@ export function init({ initialCode, editorSettings }: InitOptions): void {
   container.className = "strudel-root";
   mirror = new StrudelMirror({
     root: container,
-    initialCode: import.meta.hot?.data.code ?? initialCode,
+    initialCode: "",
     prebake,
     beforeEval: ensureAudio,
     transpiler,
@@ -126,12 +149,18 @@ export function init({ initialCode, editorSettings }: InitOptions): void {
       evalError = state.evalError?.message;
       publishError();
     },
+    // Only called after a successful evaluation, which always comes from the shown document.
     afterEval: () => {
       runtimeError = undefined;
       publishError();
+      if (mirror?.repl.scheduler.started) setPlaying(shownDoc);
     },
     onToggle: (started: boolean) => {
-      if (started) return;
+      if (started) {
+        setPlaying(shownDoc);
+        return;
+      }
+      setPlaying(null);
       runtimeError = undefined;
       publishError();
     },
@@ -147,6 +176,19 @@ export function init({ initialCode, editorSettings }: InitOptions): void {
       }),
     ),
   });
+  blankState = mirror.editor.state;
+
+  // After a hot reload, bring back the documents the previous instance had open.
+  const carried: CarriedDocs | undefined = import.meta.hot?.data.docs;
+  if (carried) {
+    Object.entries(carried.codes).forEach(([id, code]) => openDoc(id, code));
+    showDoc(carried.shown);
+  }
+}
+
+interface CarriedDocs {
+  codes: Record<string, string>;
+  shown: string | null;
 }
 
 // Calls `listener` with the full text after every edit. Returns an unsubscribe function.
@@ -183,20 +225,60 @@ export async function stop(): Promise<void> {
   await mirror?.stop();
 }
 
+// The shown document's code.
 export function getCode(): string {
   return mirror?.code ?? "";
 }
 
-// Replaces the whole text in one undoable edit, with the cursor at the start.
-// Does not evaluate: what is playing keeps playing until the next evaluation.
-export function loadCode(code: string): void {
-  const editor = mirror?.editor;
-  if (!editor) return;
-  editor.dispatch({
-    changes: { from: 0, to: editor.state.doc.length, insert: code },
-    selection: { anchor: 0 },
-    scrollIntoView: true,
-  });
+// Adds a document with its own empty undo history. It is not shown or evaluated.
+export function openDoc(id: string, code: string): void {
+  if (!blankState) throw new Error("engine.openDoc called before engine.init");
+  const state = blankState.update({
+    changes: { from: 0, to: blankState.doc.length, insert: code },
+    annotations: Transaction.addToHistory.of(false),
+  }).state;
+  docs.set(id, { state, scrollTop: 0 });
+}
+
+// Puts a document in the editor, keeping the previous one's state for later.
+// null leaves the editor empty. Switching never evaluates.
+export function showDoc(id: string | null): void {
+  const view = mirror?.editor;
+  if (!view || !blankState || id === shownDoc) return;
+  const scroller = container?.parentElement;
+  if (shownDoc !== null && docs.has(shownDoc)) {
+    docs.set(shownDoc, { state: view.state, scrollTop: scroller?.scrollTop ?? 0 });
+  }
+  const next = id === null ? undefined : docs.get(id);
+  shownDoc = next ? id : null;
+  view.setState(next?.state ?? blankState);
+  // setState skips update listeners, so StrudelMirror's copy of the code is synced by hand.
+  mirror!.code = view.state.doc.toString();
+  mirror!.repl.setCode?.(mirror!.code);
+  if (next && scroller) requestAnimationFrame(() => (scroller.scrollTop = next.scrollTop));
+}
+
+// Forgets a document. Closing the one that is playing stops the sound, because
+// nothing that is heard may be missing from the open code.
+export function closeDoc(id: string): void {
+  if (id === shownDoc) showDoc(null);
+  docs.delete(id);
+  if (id === playingDoc) void stop();
+}
+
+export function getDocCode(id: string): string {
+  if (id === shownDoc) return getCode();
+  return docs.get(id)?.state.doc.toString() ?? "";
+}
+
+// Calls `listener` with the playing document now and whenever it changes.
+// Returns an unsubscribe function.
+export function onPlayingChange(listener: PlayingListener): () => void {
+  playingListeners.add(listener);
+  listener(playingDoc);
+  return () => {
+    playingListeners.delete(listener);
+  };
 }
 
 export function focusEditor(): void {
@@ -204,10 +286,12 @@ export function focusEditor(): void {
 }
 
 // Editing this module in dev re-runs it: silence the old instance so two
-// schedulers never play at once, and carry the code over to the new one.
+// schedulers never play at once, and carry the open documents over to the new one.
 if (import.meta.hot) {
   import.meta.hot.dispose((data) => {
-    data.code = mirror?.code;
+    const codes: Record<string, string> = {};
+    docs.forEach((_, id) => (codes[id] = getDocCode(id)));
+    data.docs = { codes, shown: shownDoc } satisfies CarriedDocs;
     mirror?.stop();
     mirror?.clear();
     container?.remove();

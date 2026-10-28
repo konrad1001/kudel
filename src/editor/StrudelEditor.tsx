@@ -3,18 +3,22 @@ import * as engine from "../engine";
 import { DEFAULT_EDITOR_SETTINGS } from "../settings/defaults";
 import { TERMINAL_THEME, terminalTheme, terminalThemeSettings } from "./terminalTheme";
 
-const INITIAL_CODE = 's("bd sd [~ bd] sd")';
-
-export function StrudelEditor() {
+// `hidden` while no document is open; the editor stays mounted so its state survives.
+export function StrudelEditor({ hidden }: { hidden: boolean }) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
     engine.registerTheme(TERMINAL_THEME, terminalTheme, terminalThemeSettings);
-    engine.init({ initialCode: INITIAL_CODE, editorSettings: DEFAULT_EDITOR_SETTINGS });
+    engine.init({ editorSettings: DEFAULT_EDITOR_SETTINGS });
     return engine.attach(host);
   }, []);
 
-  return <div ref={hostRef} className="editor-host" />;
+  // A hidden element can't take focus, so focus once the editor is visible again.
+  useEffect(() => {
+    if (!hidden) engine.focusEditor();
+  }, [hidden]);
+
+  return <div ref={hostRef} className="editor-host" hidden={hidden} />;
 }
