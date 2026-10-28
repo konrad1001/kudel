@@ -79,6 +79,181 @@ body {
   opacity: 0.6;
 }
 
+.menu-separator {
+  margin: 4px 0;
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
+}
+
+.workbench {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.editor-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.explorer {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--gutterForeground, #3c3c3c);
+  user-select: none;
+}
+
+.explorer-title {
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.explorer-header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 12px;
+  font-weight: bold;
+}
+
+.explorer-folder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.explorer-header .icon-button {
+  visibility: hidden;
+}
+
+.explorer:hover .explorer-header .icon-button {
+  visibility: visible;
+}
+
+.icon-button {
+  display: flex;
+  padding: 2px;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  cursor: default;
+}
+
+.icon-button:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.explorer-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+
+.explorer-row {
+  display: flex;
+  align-items: center;
+  height: 22px;
+  padding-right: 8px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.explorer-row:hover {
+  background-color: var(--lineHighlight, #ffffff08);
+}
+
+.explorer-row.active {
+  background-color: var(--selection, #ffffff26);
+}
+
+.explorer-row.dim {
+  opacity: 0.45;
+}
+
+.chevron {
+  flex: none;
+  display: flex;
+  width: 16px;
+  margin-right: 4px;
+}
+
+.chevron.open svg {
+  transform: rotate(90deg);
+}
+
+.explorer-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dirty-dot {
+  margin-left: 6px;
+  font-size: 10px;
+}
+
+.explorer-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  background-color: var(--background, #0c0c0c);
+  border: 1px solid var(--caret, #f2f2f2);
+  outline: none;
+  padding: 0 4px;
+}
+
+.explorer-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 12px;
+  margin: 0;
+}
+
+.explorer-empty p {
+  margin: 0 0 4px;
+  opacity: 0.6;
+}
+
+.explorer-empty button {
+  font: inherit;
+  color: inherit;
+  padding: 4px 8px;
+  background-color: var(--selection, #ffffff26);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: default;
+}
+
+.explorer-empty button:hover {
+  border-color: var(--gutterForeground, #3c3c3c);
+}
+
+.explorer-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 5;
+}
+
 .editor-host {
   flex: 1;
   min-height: 0;

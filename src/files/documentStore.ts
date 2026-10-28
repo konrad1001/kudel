@@ -6,9 +6,14 @@ interface DocumentState {
   // null until the text has been opened from or saved to a file.
   filePath: string | null;
   lineEnding: LineEnding;
+  // The text as last opened or saved; the editor is dirty when it differs.
+  savedCode: string;
+  dirty: boolean;
 }
 
 export const useDocument = create<DocumentState>(() => ({
   filePath: null,
   lineEnding: "\n",
+  savedCode: "",
+  dirty: false,
 }));

@@ -1,6 +1,39 @@
-use std::fs::{self, File};
+use std::cmp::Ordering;
+use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
+
+use serde::Serialize;
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DirEntry {
+    name: String,
+    path: PathBuf,
+    is_dir: bool,
+}
+
+// One level of a folder for the explorer: folders first, then files, each sorted
+// case-insensitively. Dot entries and entries Windows marks hidden are left out.
+#[tauri::command]
+pub async fn list_dir(path: PathBuf) -> Result<Vec<DirEntry>, String> {
+    read_dir_sorted(&path).map_err(|err| format!("Could not list {}: {err}", path.display()))
+}
+
+// Creates an empty file, refusing to replace one that already exists.
+#[tauri::command]
+pub async fn create_file(dir: PathBuf, name: String) -> Result<PathBuf, String> {
+    let path = dir.join(check_file_name(&name)?);
+    OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|err| match err.kind() {
+            io::ErrorKind::AlreadyExists => format!("{name} already exists"),
+            _ => format!("Could not create {}: {err}", path.display()),
+        })?;
+    Ok(path)
+}
 
 #[tauri::command]
 pub async fn read_text_file(path: PathBuf) -> Result<String, String> {
@@ -30,6 +63,55 @@ fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
         let _ = fs::remove_file(&tmp);
     }
     result
+}
+
+fn read_dir_sorted(path: &Path) -> io::Result<Vec<DirEntry>> {
+    let mut entries = Vec::new();
+    for entry in fs::read_dir(path)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // Follows symlinks, so a linked folder shows as a folder.
+        let Ok(metadata) = fs::metadata(entry.path()) else {
+            continue;
+        };
+        if name.starts_with('.') || is_hidden(&metadata) {
+            continue;
+        }
+        entries.push(DirEntry { name, path: entry.path(), is_dir: metadata.is_dir() });
+    }
+    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+        (true, false) => Ordering::Less,
+        (false, true) => Ordering::Greater,
+        _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+    });
+    Ok(entries)
+}
+
+#[cfg(windows)]
+fn is_hidden(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+    metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN != 0
+}
+
+#[cfg(not(windows))]
+fn is_hidden(_metadata: &fs::Metadata) -> bool {
+    false
+}
+
+// A plain name for a new entry inside a folder, never a path.
+fn check_file_name(name: &str) -> Result<&str, String> {
+    let name = name.trim();
+    if name.is_empty() || name == "." || name == ".." {
+        return Err("A file name is required".into());
+    }
+    if let Some(c) = name.chars().find(|c| r#"\/:*?"<>|"#.contains(*c) || c.is_control()) {
+        return Err(format!("A file name can't contain {c:?}"));
+    }
+    if name.ends_with('.') {
+        return Err("A file name can't end with a dot".into());
+    }
+    Ok(name)
 }
 
 #[cfg(test)]
@@ -75,6 +157,47 @@ mod tests {
         assert!(path.is_dir());
         assert!(!dir.join("taken.tmp").exists());
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn lists_folders_first_then_files_case_insensitively() {
+        let dir = temp_dir("list");
+        fs::write(dir.join("beta.strudel"), "").unwrap();
+        fs::write(dir.join("Alpha.js"), "").unwrap();
+        fs::write(dir.join(".hidden"), "").unwrap();
+        fs::create_dir(dir.join("songs")).unwrap();
+        fs::create_dir(dir.join(".git")).unwrap();
+        let names: Vec<(String, bool)> = read_dir_sorted(&dir)
+            .unwrap()
+            .into_iter()
+            .map(|e| (e.name, e.is_dir))
+            .collect();
+        assert_eq!(
+            names,
+            [("songs".into(), true), ("Alpha.js".into(), false), ("beta.strudel".into(), false)]
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn creates_a_file_once() {
+        let dir = temp_dir("create");
+        let create = |name: &str| tauri::async_runtime::block_on(create_file(dir.clone(), name.into()));
+        let path = create(" song.strudel ").unwrap();
+        assert_eq!(path, dir.join("song.strudel"));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "");
+        fs::write(&path, "keep me").unwrap();
+        assert!(create("song.strudel").unwrap_err().contains("already exists"));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "keep me");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rejects_names_that_are_paths() {
+        for name in ["", "  ", ".", "..", "a/b", r"a\b", "..\\x", "c:x", "what?", "end."] {
+            assert!(check_file_name(name).is_err(), "{name:?} should be rejected");
+        }
+        assert_eq!(check_file_name("my song.strudel"), Ok("my song.strudel"));
     }
 
     #[test]

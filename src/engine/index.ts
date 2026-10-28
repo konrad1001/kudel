@@ -6,6 +6,8 @@ import * as webaudio from "@strudel/webaudio";
 import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
 import * as soundfonts from "@strudel/soundfonts";
+import { StateEffect } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
 import "./piano";
 
@@ -20,6 +22,9 @@ const errorListeners = new Set<ErrorListener>();
 let evalError: string | undefined;
 let runtimeError: string | undefined;
 let shownError: string | undefined;
+
+export type CodeListener = (code: string) => void;
+const codeListeners = new Set<CodeListener>();
 
 function publishError(): void {
   const next = evalError ?? runtimeError;
@@ -132,6 +137,24 @@ export function init({ initialCode, editorSettings }: InitOptions): void {
     },
   });
   document.addEventListener(core.logger.key, onLog);
+  // StrudelMirror's own change handler is internal, so add a second update listener.
+  mirror.editor.dispatch({
+    effects: StateEffect.appendConfig.of(
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) return;
+        const code = update.state.doc.toString();
+        codeListeners.forEach((listener) => listener(code));
+      }),
+    ),
+  });
+}
+
+// Calls `listener` with the full text after every edit. Returns an unsubscribe function.
+export function onCodeChange(listener: CodeListener): () => void {
+  codeListeners.add(listener);
+  return () => {
+    codeListeners.delete(listener);
+  };
 }
 
 // Calls `listener` with the current error now and whenever it changes

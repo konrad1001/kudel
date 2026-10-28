@@ -11,10 +11,11 @@ A reload, crash or closed window currently throws the code away. Fix that before
 - [x] Set up vitest (`npx vitest run`) so the pure functions below are tested from the start.
 - [x] First Rust commands in `src-tauri/src/commands/files.rs`: read and write a file, called from the front end through `invoke`.
 - [ ] **Autosave and restore:** save the buffer to the app data directory a few seconds after each edit and on close; reopen it, with the cursor position, on startup.
-- [ ] **Open / Save / Save As / New** with native dialogs (Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+N). Pick a file extension (`.strudel` or `.js`).
-- [ ] **Recent files** list.
-- [ ] **Window title** shows the file name and an unsaved-changes marker (`● name.strudel - Strudel Studio`).
-- [ ] Ask before closing or opening another file over unsaved changes.
+- [x] **Open / Save / Save As / New** with native dialogs (Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+N). Pick a file extension (`.strudel` or `.js`).
+- [x] **Explorer sidebar** (VS Code style): open a folder (Ctrl+Shift+O), browse it, click to open, New File, toggle with Ctrl+B.
+- [ ] **Recent files** list (and recent folders; reopen the last folder on startup).
+- [x] **Window title** shows the file name and an unsaved-changes marker (`● name.strudel - Strudel Studio`).
+- [ ] Ask before closing or opening another file over unsaved changes. (Opening another file asks; closing the window doesn't yet.)
 - [ ] Loading a file replaces the editor content as one undoable transaction, without evaluating it.
 
 **Done when:** killing the app mid-edit and restarting brings back the exact code and cursor position; files open and save through native dialogs; the title shows the file and whether it's dirty; `npx vitest run` passes.

@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { Action } from "../shortcuts";
 
 export interface Menu {
   label: string;
-  actions: Action[];
+  // Separators are drawn between groups.
+  groups: Action[][];
 }
 
 export function MenuBar({ menus }: { menus: Menu[] }) {
@@ -42,20 +43,25 @@ export function MenuBar({ menus }: { menus: Menu[] }) {
           </button>
           {openIndex === index && (
             <div className="menu-items" role="menu">
-              {menu.actions.map((action) => (
-                <button
-                  key={action.label}
-                  type="button"
-                  role="menuitem"
-                  className="menu-item"
-                  onClick={() => {
-                    setOpenIndex(null);
-                    action.run();
-                  }}
-                >
-                  <span>{action.label}</span>
-                  {action.shortcut && <span className="menu-shortcut">{action.shortcut}</span>}
-                </button>
+              {menu.groups.map((group, groupIndex) => (
+                <Fragment key={groupIndex}>
+                  {groupIndex > 0 && <div className="menu-separator" role="separator" />}
+                  {group.map((action) => (
+                    <button
+                      key={action.label}
+                      type="button"
+                      role="menuitem"
+                      className="menu-item"
+                      onClick={() => {
+                        setOpenIndex(null);
+                        action.run();
+                      }}
+                    >
+                      <span>{action.label}</span>
+                      {action.shortcut && <span className="menu-shortcut">{action.shortcut}</span>}
+                    </button>
+                  ))}
+                </Fragment>
               ))}
             </div>
           )}
