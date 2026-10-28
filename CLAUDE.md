@@ -44,8 +44,11 @@ src/
                (init, evaluate, stop, getCode, dispatch, registerSamples, onError, ...)
   editor/      React wrapper around StrudelMirror, custom CodeMirror extensions,
                and pure functions that rewrite code text (UI → code write-back)
-  panels/      UI panels (settings, transport, sample browser, ...)
+  files/       open/save actions, the open document's store, pure text helpers;
+               native.ts is the only file here that calls Tauri (invoke, dialogs)
+  panels/      UI panels (menu bar, settings, transport, sample browser, ...)
   settings/    settings schema, defaults, zustand store
+  shortcuts.ts the Action type (label, shortcut, run) shared by menus and key handling
 src-tauri/
   src/commands/   Rust commands, one file per area (settings.rs, files.rs, samples.rs)
 ```

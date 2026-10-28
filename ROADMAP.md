@@ -8,8 +8,8 @@ The next four milestones, in order. Each leaves the app runnable and ends with a
 
 A reload, crash or closed window currently throws the code away. Fix that before anything else.
 
-- [ ] Set up vitest (`npx vitest run`) so the pure functions below are tested from the start.
-- [ ] First Rust commands in `src-tauri/src/commands/files.rs`: read and write a file, called from the front end through `invoke`.
+- [x] Set up vitest (`npx vitest run`) so the pure functions below are tested from the start.
+- [x] First Rust commands in `src-tauri/src/commands/files.rs`: read and write a file, called from the front end through `invoke`.
 - [ ] **Autosave and restore:** save the buffer to the app data directory a few seconds after each edit and on close; reopen it, with the cursor position, on startup.
 - [ ] **Open / Save / Save As / New** with native dialogs (Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+N). Pick a file extension (`.strudel` or `.js`).
 - [ ] **Recent files** list.

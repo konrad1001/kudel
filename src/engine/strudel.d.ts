@@ -78,6 +78,8 @@ declare module "@strudel/codemirror" {
 
   export class StrudelMirror {
     constructor(options: StrudelMirrorOptions);
+    // The CodeMirror view; its update listener keeps `code` in step with the document.
+    editor: import("@codemirror/view").EditorView;
     code: string;
     evaluate(autostart?: boolean): Promise<void>;
     stop(): Promise<void>;

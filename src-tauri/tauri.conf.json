@@ -14,8 +14,8 @@
       {
         "title": "Strudel Studio",
         "width": 1200,
-        "height": 800,
-        "visible": false,
+        "height": 700,
+        "center": true,
         "theme": "Dark",
         "backgroundColor": "#0c0c0c"
       }

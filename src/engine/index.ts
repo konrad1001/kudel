@@ -164,6 +164,22 @@ export function getCode(): string {
   return mirror?.code ?? "";
 }
 
+// Replaces the whole text in one undoable edit, with the cursor at the start.
+// Does not evaluate: what is playing keeps playing until the next evaluation.
+export function loadCode(code: string): void {
+  const editor = mirror?.editor;
+  if (!editor) return;
+  editor.dispatch({
+    changes: { from: 0, to: editor.state.doc.length, insert: code },
+    selection: { anchor: 0 },
+    scrollIntoView: true,
+  });
+}
+
+export function focusEditor(): void {
+  mirror?.editor.focus();
+}
+
 // Editing this module in dev re-runs it: silence the old instance so two
 // schedulers never play at once, and carry the code over to the new one.
 if (import.meta.hot) {

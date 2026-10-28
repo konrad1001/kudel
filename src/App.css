@@ -22,6 +22,63 @@ body {
   flex-direction: column;
 }
 
+.menu-bar {
+  flex: none;
+  display: flex;
+  padding: 0 4px;
+  border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
+  user-select: none;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu-title,
+.menu-item {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+.menu-title {
+  padding: 4px 10px;
+}
+
+.menu-title:hover,
+.menu-title[aria-expanded="true"],
+.menu-item:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.menu-items {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+  background-color: var(--background, #0c0c0c);
+  border: 1px solid var(--gutterForeground, #3c3c3c);
+  box-shadow: 0 4px 12px #00000080;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 4px 12px;
+  text-align: left;
+}
+
+.menu-shortcut {
+  opacity: 0.6;
+}
+
 .editor-host {
   flex: 1;
   min-height: 0;
