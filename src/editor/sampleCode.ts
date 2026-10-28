@@ -16,6 +16,12 @@ export interface SampleInsert {
   inString: boolean;
 }
 
+// Whether a drop position worked out against `before` still means the same place in
+// `after`: true when nothing up to it changed (edits after it don't move it).
+export function dropPointUnchanged(before: string, after: string, pos: number): boolean {
+  return pos <= after.length && before.slice(0, pos) === after.slice(0, pos);
+}
+
 const escapeRegExp = (text: string) =>
   text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

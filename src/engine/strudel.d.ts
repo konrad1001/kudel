@@ -92,6 +92,7 @@ declare module "@strudel/codemirror" {
       scheduler: { started: boolean };
       setCode?(code: string): void;
     };
+    // Also what StrudelMirror's keymap (Alt+Enter) and vim's :w call, via `this`.
     evaluate(autostart?: boolean): Promise<void>;
     stop(): Promise<void>;
     // Only removes StrudelMirror's document listeners; the editor and scheduler live on.

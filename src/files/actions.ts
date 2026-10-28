@@ -35,15 +35,15 @@ function fileAction<A extends unknown[]>(run: (...args: A) => Promise<unknown>) 
   };
 }
 
-let lastTabId = 0;
-
 function activate(id: string | null): void {
   engine.showDoc(id);
   useTabs.setState({ activeId: id });
 }
 
 function openTab(code: string, filePath: string | null, lineEnding: LineEnding): void {
-  const id = `tab-${++lastTabId}`;
+  // Random rather than counted, so ids stay unique even if this module is hot-reloaded
+  // while tabs are open. Ids last for the session only; a tab's file is its filePath.
+  const id = `tab-${crypto.randomUUID()}`;
   engine.openDoc(id, code);
   const { tabs, activeId } = useTabs.getState();
   const tab: Tab = {

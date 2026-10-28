@@ -11,8 +11,8 @@ import { selectActiveTab, updateTab, useTabs } from "./tabsStore";
 export function useTabTracking(): void {
   useEffect(
     () =>
-      engine.onCodeChange((code) => {
-        const tab = selectActiveTab(useTabs.getState());
+      engine.onCodeChange((docId, code) => {
+        const tab = useTabs.getState().tabs.find((t) => t.id === docId);
         const dirty = !!tab && code !== tab.savedCode;
         if (tab && tab.dirty !== dirty) updateTab(tab.id, { dirty });
       }),

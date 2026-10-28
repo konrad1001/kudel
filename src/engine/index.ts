@@ -23,8 +23,12 @@ let evalError: string | undefined;
 let runtimeError: string | undefined;
 let shownError: string | undefined;
 
-export type CodeListener = (code: string) => void;
+export type CodeListener = (docId: string, code: string) => void;
 const codeListeners = new Set<CodeListener>();
+
+function publishCode(docId: string, code: string): void {
+  codeListeners.forEach((listener) => listener(docId, code));
+}
 
 // Open documents by id. There is one editor: the shown document lives in the view,
 // the others keep their whole editor state (text, cursor, undo history, Strudel's
@@ -37,6 +41,10 @@ const docs = new Map<string, StoredDoc>();
 let shownDoc: string | null = null;
 // An empty state with every extension the editor uses; new documents start from it.
 let blankState: EditorState | undefined;
+
+// The document the latest evaluation came from. Recorded when evaluation starts, so a
+// tab switch while it is still running (loading samples, say) doesn't change it.
+let evaluatingDoc: string | null = null;
 
 // The document whose code was last evaluated while the sound is running.
 export type PlayingListener = (docId: string | null) => void;
@@ -64,8 +72,9 @@ function onLog(event: Event): void {
 }
 
 // Turns the path in samples("./drums") into a sample map: sound name to the URLs of
-// its files. Set by the app, which knows where files are; the engine only knows code.
-export type LocalSampleResolver = (path: string) => Promise<Record<string, string[]>>;
+// its files. Set by the app, which knows where files are; the engine only knows code
+// and which document is being evaluated (null if none).
+export type LocalSampleResolver = (path: string, docId: string | null) => Promise<Record<string, string[]>>;
 let localSampleResolver: LocalSampleResolver | undefined;
 
 export function setLocalSampleResolver(resolver: LocalSampleResolver): void {
@@ -76,7 +85,7 @@ export function setLocalSampleResolver(resolver: LocalSampleResolver): void {
 // expects [sampleMap, baseUrl] back; the map's URLs are already complete.
 async function loadLocalSamples(path: string): Promise<[Record<string, string[]>, string]> {
   if (!localSampleResolver) throw new Error(`samples("${path}"): local samples are not available`);
-  return [await localSampleResolver(path), ""];
+  return [await localSampleResolver(path, evaluatingDoc), ""];
 }
 
 // Everything evaluated code can see, plus the sounds strudel.cc ships with.
@@ -169,15 +178,15 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
       evalError = state.evalError?.message;
       publishError();
     },
-    // Only called after a successful evaluation, which always comes from the shown document.
+    // Only called after a successful evaluation.
     afterEval: () => {
       runtimeError = undefined;
       publishError();
-      if (mirror?.repl.scheduler.started) setPlaying(shownDoc);
+      if (mirror?.repl.scheduler.started) setPlaying(evaluatingDoc);
     },
     onToggle: (started: boolean) => {
       if (started) {
-        setPlaying(shownDoc);
+        setPlaying(evaluatingDoc);
         return;
       }
       setPlaying(null);
@@ -190,15 +199,23 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
   // Added before blankState is captured, so every document gets these.
   mirror.editor.dispatch({
     effects: StateEffect.appendConfig.of([
+      // The view only ever holds the shown document.
       EditorView.updateListener.of((update) => {
-        if (!update.docChanged) return;
-        const code = update.state.doc.toString();
-        codeListeners.forEach((listener) => listener(code));
+        if (update.docChanged && shownDoc !== null) publishCode(shownDoc, update.state.doc.toString());
       }),
       ...extensions,
     ]),
   });
   blankState = mirror.editor.state;
+
+  // Every evaluation goes through this method: our Play action, StrudelMirror's own
+  // keymap (Alt+Enter) and vim's :w. Record which document it evaluates before
+  // anything async happens. Wrapping the instance's method, not patching the package.
+  const evaluateShown = mirror.evaluate.bind(mirror);
+  mirror.evaluate = (autostart?: boolean) => {
+    evaluatingDoc = shownDoc;
+    return evaluateShown(autostart);
+  };
 
   // After a hot reload, bring back the documents the previous instance had open.
   const carried: CarriedDocs | undefined = import.meta.hot?.data.docs;
@@ -213,7 +230,8 @@ interface CarriedDocs {
   shown: string | null;
 }
 
-// Calls `listener` with the full text after every edit. Returns an unsubscribe function.
+// Calls `listener` with the document and its full text after every edit, whether made
+// in the editor or by dispatchChanges. Returns an unsubscribe function.
 export function onCodeChange(listener: CodeListener): () => void {
   codeListeners.add(listener);
   return () => {
@@ -288,17 +306,32 @@ export function closeDoc(id: string): void {
   if (id === playingDoc) void stop();
 }
 
-// Applies edits to the shown document as one undoable step. Positions refer to the
-// code before the edits; the cursor moves to just after whatever lands at `cursorAt`.
-export function dispatchChanges(changes: { from: number; to?: number; insert: string }[], cursorAt?: number): void {
+// Applies edits to a document, shown or not, as one undoable step. Positions refer to
+// the code before the edits; the cursor moves to just after whatever lands at `cursorAt`.
+export function dispatchChanges(
+  docId: string,
+  changes: { from: number; to?: number; insert: string }[],
+  cursorAt?: number,
+): void {
   const view = mirror?.editor;
-  if (!view || shownDoc === null) return;
-  const set = view.state.changes(changes);
-  view.dispatch({
+  if (!view) return;
+  const stored = docs.get(docId);
+  const state = docId === shownDoc ? view.state : stored?.state;
+  if (!state) return;
+  const set = state.changes(changes);
+  const spec = {
     changes: set,
     selection: cursorAt === undefined ? undefined : { anchor: set.mapPos(cursorAt, 1) },
     scrollIntoView: true,
-  });
+  };
+  if (docId === shownDoc) {
+    view.dispatch(spec);
+    return;
+  }
+  // A stored document has no view to notify the listeners, so do it here.
+  const next = state.update(spec).state;
+  docs.set(docId, { state: next, scrollTop: stored!.scrollTop });
+  publishCode(docId, next.doc.toString());
 }
 
 export function getDocCode(id: string): string {
