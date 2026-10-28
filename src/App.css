@@ -27,3 +27,16 @@ body {
 .strudel-root .cm-editor {
   min-height: 100%;
 }
+
+.error-bar {
+  flex: none;
+  max-height: 30%;
+  overflow: auto;
+  padding: 6px 12px;
+  font-family: monospace;
+  font-size: 14px;
+  white-space: pre-wrap;
+  color: #ffb4b4;
+  background-color: #4a1515;
+  border-top: 1px solid #a33;
+}

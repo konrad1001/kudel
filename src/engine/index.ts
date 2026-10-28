@@ -12,6 +12,28 @@ let mirror: StrudelMirror | undefined;
 let container: HTMLDivElement | undefined;
 let audioReady: Promise<void> | undefined;
 
+export type ErrorListener = (message: string | undefined) => void;
+const errorListeners = new Set<ErrorListener>();
+// Evaluation errors come from repl state; errors while playing (a pattern that
+// throws, an unknown sound) only reach Strudel's logger, so they are tracked apart.
+let evalError: string | undefined;
+let runtimeError: string | undefined;
+let shownError: string | undefined;
+
+function publishError(): void {
+  const next = evalError ?? runtimeError;
+  if (next === shownError) return;
+  shownError = next;
+  errorListeners.forEach((listener) => listener(next));
+}
+
+function onLog(event: Event): void {
+  const { message } = (event as CustomEvent<{ message: string }>).detail;
+  if (!/^\[[\w-]+\] error: /.test(message)) return;
+  runtimeError = message;
+  publishError();
+}
+
 // Everything evaluated code can see, plus the sounds it can play.
 async function prebake(): Promise<void> {
   await Promise.all([
@@ -47,7 +69,31 @@ export function init({ initialCode }: InitOptions): void {
     transpiler,
     defaultOutput: webaudio.webaudioOutput,
     getTime: () => webaudio.getAudioContext().currentTime,
+    onUpdateState: (state: { evalError?: Error }) => {
+      evalError = state.evalError?.message;
+      publishError();
+    },
+    afterEval: () => {
+      runtimeError = undefined;
+      publishError();
+    },
+    onToggle: (started: boolean) => {
+      if (started) return;
+      runtimeError = undefined;
+      publishError();
+    },
   });
+  document.addEventListener(core.logger.key, onLog);
+}
+
+// Calls `listener` with the current error now and whenever it changes
+// (undefined means no error). Returns an unsubscribe function.
+export function onError(listener: ErrorListener): () => void {
+  errorListeners.add(listener);
+  listener(shownError);
+  return () => {
+    errorListeners.delete(listener);
+  };
 }
 
 // Places the editor inside `parent`; the returned function takes it out again.
@@ -78,5 +124,6 @@ if (import.meta.hot) {
     mirror?.stop();
     mirror?.clear();
     container?.remove();
+    document.removeEventListener(core.logger.key, onLog);
   });
 }
