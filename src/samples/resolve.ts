@@ -7,7 +7,7 @@ import { buildSampleMap } from "./sampleMap";
 // Paths in samples("./drums") start from the folder of the file being evaluated (the
 // active tab), so a project keeps working when its folder moves. An unsaved tab
 // uses the open folder instead.
-function baseDir(): string | null {
+export function sampleBaseDir(): string | null {
   const tab = selectActiveTab(useTabs.getState());
   if (tab?.filePath) return dirName(tab.filePath);
   return useExplorer.getState().root;
@@ -16,7 +16,7 @@ function baseDir(): string | null {
 // The engine's LocalSampleResolver. Errors become Error objects so the error bar
 // shows them (Tauri rejects with plain strings).
 export async function resolveLocalSamples(path: string): Promise<Record<string, string[]>> {
-  const base = baseDir();
+  const base = sampleBaseDir();
   if (!base) {
     throw new Error(`samples("${path}"): save this file or open a folder first; ./ paths start from the file's folder`);
   }

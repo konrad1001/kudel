@@ -30,6 +30,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@codemirror/lang-javascript": "6.2.5",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",

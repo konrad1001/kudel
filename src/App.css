@@ -22,6 +22,9 @@
 :root {
   /* Marks whatever is making sound: the playing tab, its file, the stop button. */
   --playing: #fbfcfb;
+  /* Explorer file-type icons (the terminal theme's blue and magenta). */
+  --icon-strudel: #6cb6ff;
+  --icon-audio: #c792ea;
 }
 
 html,
@@ -236,6 +239,15 @@ body {
 }
 
 /* An audio file being auditioned: its wave icon lights up. */
+/* File-type icons in the chevron slot. */
+.chevron.strudel {
+  color: var(--icon-strudel);
+}
+
+.chevron.audio {
+  color: var(--icon-audio);
+}
+
 .explorer-row.previewing .chevron {
   color: var(--playing);
 }
@@ -256,6 +268,7 @@ body {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.8;
 }
 
 .explorer-file-extension {

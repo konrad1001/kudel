@@ -50,7 +50,14 @@ export async function setRoot(root: string): Promise<void> {
 }
 
 export function closeFolder(): void {
-  set({ root: null, children: {}, expanded: {}, targetDir: null, creatingIn: null, rootMissing: false });
+  set({
+    root: null,
+    children: {},
+    expanded: {},
+    targetDir: null,
+    creatingIn: null,
+    rootMissing: false,
+  });
 }
 
 // Re-reads the root and every expanded folder. Folders that disappeared collapse.
@@ -58,7 +65,9 @@ export async function refresh(): Promise<void> {
   const { root, expanded } = get();
   if (!root) return;
   const dirs = Object.keys(expanded);
-  const listed = await Promise.all(dirs.map((dir) => listDir(dir).catch(() => null)));
+  const listed = await Promise.all(
+    dirs.map((dir) => listDir(dir).catch(() => null)),
+  );
   if (get().root !== root) return;
   const children: Record<string, DirEntry[]> = {};
   const stillExpanded: Record<string, true> = { [root]: true };

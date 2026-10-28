@@ -14,6 +14,27 @@ export function dirName(path: string): string {
   return cut === 2 && trimmed[1] === ":" ? trimmed.slice(0, 3) : trimmed.slice(0, cut);
 }
 
+// How code in `fromDir` names `to`: "./drums", "../shared/drums", or "./" for the
+// folder itself, always with forward slashes. null when they are on different drives.
+export function relativePath(fromDir: string, to: string): string | null {
+  const parts = (p: string) => p.split(/[\\/]+/).filter(Boolean);
+  const from = parts(fromDir);
+  const target = parts(to);
+  if (from[0]?.toLowerCase() !== target[0]?.toLowerCase()) return null;
+  let shared = 0;
+  while (
+    shared < from.length &&
+    shared < target.length &&
+    from[shared].toLowerCase() === target[shared].toLowerCase()
+  ) {
+    shared++;
+  }
+  const up = from.length - shared;
+  const down = target.slice(shared).join("/");
+  if (up === 0) return `./${down}`;
+  return "../".repeat(up) + down;
+}
+
 // A file name without its extension.
 export function stem(path: string): string {
   return baseName(path).replace(/\.[^.]+$/, "");

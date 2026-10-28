@@ -6,7 +6,7 @@ import * as webaudio from "@strudel/webaudio";
 import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
 import * as soundfonts from "@strudel/soundfonts";
-import { EditorState, StateEffect, Transaction } from "@codemirror/state";
+import { EditorState, StateEffect, Transaction, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
 import "./piano";
@@ -143,12 +143,14 @@ export function registerTheme(name: string, extension: unknown, settings: ThemeS
 
 export interface InitOptions {
   editorSettings: EditorSettings;
+  // Our own CodeMirror extensions (src/editor), added to every document.
+  extensions?: Extension[];
 }
 
 // Creates the editor and scheduler once, with no document shown. Later calls are
 // no-ops, because React StrictMode runs effects twice in dev and StrudelMirror has
 // no real teardown.
-export function init({ editorSettings }: InitOptions): void {
+export function init({ editorSettings, extensions = [] }: InitOptions): void {
   if (mirror) return;
   // StrudelMirror builds the editor from its localStorage-backed settings, so ours go
   // there first; otherwise whatever was saved last would win on startup.
@@ -185,14 +187,16 @@ export function init({ editorSettings }: InitOptions): void {
   });
   document.addEventListener(core.logger.key, onLog);
   // StrudelMirror's own change handler is internal, so add a second update listener.
+  // Added before blankState is captured, so every document gets these.
   mirror.editor.dispatch({
-    effects: StateEffect.appendConfig.of(
+    effects: StateEffect.appendConfig.of([
       EditorView.updateListener.of((update) => {
         if (!update.docChanged) return;
         const code = update.state.doc.toString();
         codeListeners.forEach((listener) => listener(code));
       }),
-    ),
+      ...extensions,
+    ]),
   });
   blankState = mirror.editor.state;
 
@@ -282,6 +286,19 @@ export function closeDoc(id: string): void {
   if (id === shownDoc) showDoc(null);
   docs.delete(id);
   if (id === playingDoc) void stop();
+}
+
+// Applies edits to the shown document as one undoable step. Positions refer to the
+// code before the edits; the cursor moves to just after whatever lands at `cursorAt`.
+export function dispatchChanges(changes: { from: number; to?: number; insert: string }[], cursorAt?: number): void {
+  const view = mirror?.editor;
+  if (!view || shownDoc === null) return;
+  const set = view.state.changes(changes);
+  view.dispatch({
+    changes: set,
+    selection: cursorAt === undefined ? undefined : { anchor: set.mapPos(cursorAt, 1) },
+    scrollIntoView: true,
+  });
 }
 
 export function getDocCode(id: string): string {

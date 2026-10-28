@@ -4,6 +4,7 @@ import {
   dirName,
   isAudioFile,
   isCodeFile,
+  relativePath,
   samePath,
   stem,
   windowTitle,
@@ -18,6 +19,25 @@ describe("dirName", () => {
 
   it("keeps a drive root intact", () => {
     expect(dirName("C:\\acid.strudel")).toBe("C:\\");
+  });
+});
+
+describe("relativePath", () => {
+  it("goes down into subfolders", () => {
+    expect(relativePath("C:\\set", "C:\\set\\samples\\drums")).toBe("./samples/drums");
+  });
+
+  it("goes up and across, ignoring case", () => {
+    expect(relativePath("C:\\Set\\songs", "c:\\set\\samples")).toBe("../samples");
+    expect(relativePath("C:\\set\\a\\b", "C:\\lib")).toBe("../../../lib");
+  });
+
+  it("names the folder itself ./", () => {
+    expect(relativePath("C:\\set\\", "C:\\set")).toBe("./");
+  });
+
+  it("gives up across drives", () => {
+    expect(relativePath("C:\\set", "D:\\samples")).toBe(null);
   });
 });
 
