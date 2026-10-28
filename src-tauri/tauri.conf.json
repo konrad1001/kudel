@@ -22,14 +22,14 @@
         "default-src": "'self'",
         "script-src": "'self' 'unsafe-eval' data:",
         "style-src": "'self' 'unsafe-inline'",
-        "connect-src": "'self' ipc: http://ipc.localhost https://raw.githubusercontent.com",
+        "connect-src": "'self' ipc: http://ipc.localhost https://strudel.b-cdn.net https://felixroos.github.io https://raw.githubusercontent.com",
         "img-src": "'self' data:"
       },
       "devCsp": {
         "default-src": "'self'",
         "script-src": "'self' 'unsafe-eval' 'unsafe-inline' data:",
         "style-src": "'self' 'unsafe-inline'",
-        "connect-src": "'self' ipc: http://ipc.localhost ws://localhost:1420 https://raw.githubusercontent.com",
+        "connect-src": "'self' ipc: http://ipc.localhost ws://localhost:1420 https://strudel.b-cdn.net https://felixroos.github.io https://raw.githubusercontent.com",
         "img-src": "'self' data:"
       },
       "dangerousDisableAssetCspModification": ["script-src", "style-src"]

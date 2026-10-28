@@ -5,8 +5,9 @@ import { transpiler } from "@strudel/transpiler";
 import * as webaudio from "@strudel/webaudio";
 import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
-
-const DEFAULT_SAMPLES = "github:tidalcycles/dirt-samples";
+import * as soundfonts from "@strudel/soundfonts";
+import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
+import "./piano";
 
 let mirror: StrudelMirror | undefined;
 let container: HTMLDivElement | undefined;
@@ -34,13 +35,16 @@ function onLog(event: Event): void {
   publishError();
 }
 
-// Everything evaluated code can see, plus the sounds it can play.
+// Everything evaluated code can see, plus the sounds strudel.cc ships with.
 async function prebake(): Promise<void> {
   await Promise.all([
-    core.evalScope(core, mini, tonal, webaudio, codemirror),
+    core.evalScope(core, mini, tonal, webaudio, codemirror, soundfonts),
     webaudio.registerSynthSounds(),
-    webaudio.samples(DEFAULT_SAMPLES),
+    webaudio.registerZZFXSounds(),
+    soundfonts.registerSoundfonts(),
+    ...SAMPLE_SOURCES.map(({ map, baseUrl, options }) => webaudio.samples(map, baseUrl, options)),
   ]);
+  await webaudio.aliasBank(DRUM_MACHINE_ALIASES);
 }
 
 // Evaluation always follows a key press or click, so the AudioContext may start here.

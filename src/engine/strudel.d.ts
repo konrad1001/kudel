@@ -6,6 +6,24 @@ declare module "@strudel/core" {
   export function evalScope(...modules: unknown[]): Promise<unknown[]>;
   // Every message is also dispatched on document as a CustomEvent named logger.key.
   export const logger: ((message: string, type?: string) => void) & { key: string };
+
+  // A hap's value: control names (s, note, pan, clip, ...) to their values.
+  export interface ControlValue {
+    clip?: number;
+    pan?: number;
+    [control: string]: unknown;
+  }
+
+  export class Pattern {
+    fmap(fn: (value: ControlValue) => ControlValue): Pattern;
+    s(sound: string): Pattern;
+    release(seconds: number): Pattern;
+    // Added by src/engine/piano.ts, as strudel.cc does in its website code.
+    piano(): Pattern;
+  }
+
+  export function noteToMidi(note: string): number;
+  export function valueToMidi(value: ControlValue): number;
 }
 
 // Imported only to hand to evalScope; @strudel/mini also registers the mini-notation parser.
@@ -22,11 +40,19 @@ declare module "@strudel/webaudio" {
   export function getAudioContext(): AudioContext;
   export function initAudio(options?: Record<string, unknown>): Promise<void>;
   export function registerSynthSounds(): void;
+  export function registerZZFXSounds(): void;
+  // With a single string argument: the URL of a JSON map of bank aliases.
+  export function aliasBank(path: string): Promise<void>;
   export function samples(
     sampleMap: string | Record<string, unknown>,
     baseUrl?: string,
     options?: Record<string, unknown>,
   ): Promise<void>;
+}
+
+declare module "@strudel/soundfonts" {
+  // Registers the General MIDI instruments (gm_*); presets load on first use.
+  export function registerSoundfonts(): void;
 }
 
 declare module "@strudel/codemirror" {

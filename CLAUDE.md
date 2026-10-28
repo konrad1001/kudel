@@ -16,7 +16,7 @@ This is a **single-user, personal project**. It will not be distributed. Optimis
 - **Shell:** Tauri 2 (Rust backend, WebView2 front end)
 - **UI:** React + TypeScript + Vite
 - **Editor:** CodeMirror 6 via `StrudelMirror` from `@strudel/codemirror`
-- **Engine:** `@strudel/core`, `@strudel/mini`, `@strudel/transpiler`, `@strudel/tonal`, `@strudel/webaudio` (superdough)
+- **Engine:** `@strudel/core`, `@strudel/mini`, `@strudel/transpiler`, `@strudel/tonal`, `@strudel/webaudio` (superdough), `@strudel/soundfonts`
 - **UI state:** zustand (UI-only state; never sound-affecting state, see principle 1)
 - **Tests:** vitest for TypeScript; `cargo test` for Rust
 
@@ -65,7 +65,7 @@ Pin **exact** versions of every `@strudel/*` package and `superdough` in `packag
 - **Runtime errors bypass repl state.** In core 1.2.6 `repl` doesn't pass `onError` to the scheduler, so errors while playing (a throwing pattern, an unknown sound) only reach Strudel's logger. The engine listens for its `strudel.log` document event to show them.
 - **Hidden editor settings.** `@strudel/codemirror` persists its editor settings (theme, font, keybindings) in `localStorage` under `codemirror-settings`. The settings work must drive these from our settings file through StrudelMirror's settings methods.
 - **Asset protocol scope.** Local files are only reachable via `convertFileSrc` if their path is inside the configured `assetProtocol.scope`.
-- **Default samples load from the network**, so the app isn't offline-capable until local samples are added.
+- **Default sounds mirror strudel.cc**, so code behaves the same here as on the site. `src/engine/soundSources.ts` copies the sample banks from strudel.cc's `website/src/repl/prebake.mjs` (not published to npm; read it at the git tag matching our versions), and `src/engine/piano.ts` reproduces its `.piano()`. Re-sync both when upgrading Strudel. They load from the network (`strudel.b-cdn.net`, `felixroos.github.io` for GM soundfonts), so the app isn't offline-capable until local samples are added.
 
 ## Verifying work
 
