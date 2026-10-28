@@ -63,8 +63,26 @@ function onLog(event: Event): void {
   publishError();
 }
 
+// Turns the path in samples("./drums") into a sample map: sound name to the URLs of
+// its files. Set by the app, which knows where files are; the engine only knows code.
+export type LocalSampleResolver = (path: string) => Promise<Record<string, string[]>>;
+let localSampleResolver: LocalSampleResolver | undefined;
+
+export function setLocalSampleResolver(resolver: LocalSampleResolver): void {
+  localSampleResolver = resolver;
+}
+
+// superdough checks registered prefixes before its own (github:, shabda:, ...) and
+// expects [sampleMap, baseUrl] back; the map's URLs are already complete.
+async function loadLocalSamples(path: string): Promise<[Record<string, string[]>, string]> {
+  if (!localSampleResolver) throw new Error(`samples("${path}"): local samples are not available`);
+  return [await localSampleResolver(path), ""];
+}
+
 // Everything evaluated code can see, plus the sounds strudel.cc ships with.
 async function prebake(): Promise<void> {
+  webaudio.registerSamplesPrefix("./", loadLocalSamples);
+  webaudio.registerSamplesPrefix("../", loadLocalSamples);
   await Promise.all([
     core.evalScope(core, mini, tonal, webaudio, codemirror, soundfonts),
     webaudio.registerSynthSounds(),

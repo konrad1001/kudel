@@ -235,6 +235,11 @@ body {
   opacity: 0.45;
 }
 
+/* An audio file being auditioned: its wave icon lights up. */
+.explorer-row.previewing .chevron {
+  color: var(--playing);
+}
+
 .chevron {
   flex: none;
   display: flex;

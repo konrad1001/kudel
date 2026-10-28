@@ -1,5 +1,6 @@
-// The only place in src/files that talks to Tauri.
-import { invoke } from "@tauri-apps/api/core";
+// The only place in the front end that talks to Tauri.
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import type { SampleFolder } from "../samples/sampleMap";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
 
@@ -42,6 +43,22 @@ export function listDir(path: string): Promise<DirEntry[]> {
 // Fails if the name is not a plain file name or the file already exists.
 export function createFile(dir: string, name: string): Promise<string> {
   return invoke("create_file", { dir, name });
+}
+
+// Resolves `relative` against `base`, lists its audio, and lets the asset protocol
+// serve that folder. Rejects with a message naming the folder.
+export function scanSampleFolder(base: string, relative: string): Promise<SampleFolder> {
+  return invoke("scan_sample_folder", { base, relative });
+}
+
+// Lets the asset protocol serve a folder (recursively), e.g. for previews.
+export function allowAssetFolder(path: string): Promise<void> {
+  return invoke("allow_asset_folder", { path });
+}
+
+// The URL the WebView fetches a local file from. Only works inside allowed folders.
+export function assetUrl(path: string): string {
+  return convertFileSrc(path);
 }
 
 export async function setWindowTitle(title: string): Promise<void> {

@@ -1,5 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { baseName, isCodeFile, samePath, windowTitle, withDefaultExtension } from "./paths";
+import {
+  baseName,
+  dirName,
+  isAudioFile,
+  isCodeFile,
+  samePath,
+  stem,
+  windowTitle,
+  withDefaultExtension,
+} from "./paths";
+
+describe("dirName", () => {
+  it("drops the last part", () => {
+    expect(dirName("C:\\music\\songs\\acid.strudel")).toBe("C:\\music\\songs");
+    expect(dirName("C:/music/songs/")).toBe("C:/music");
+  });
+
+  it("keeps a drive root intact", () => {
+    expect(dirName("C:\\acid.strudel")).toBe("C:\\");
+  });
+});
+
+describe("stem", () => {
+  it("drops only the last extension", () => {
+    expect(stem("C:\\s\\kick.wav")).toBe("kick");
+    expect(stem("C:\\s\\808.bd.WAV")).toBe("808.bd");
+  });
+});
+
+describe("isAudioFile", () => {
+  it("accepts what WebView2 decodes, in any case", () => {
+    expect(isAudioFile("kick.WAV")).toBe(true);
+    expect(isAudioFile("pad.flac")).toBe(true);
+    expect(isAudioFile("pad.aif")).toBe(false);
+    expect(isAudioFile("beat.strudel")).toBe(false);
+  });
+});
 
 describe("baseName", () => {
   it("takes the last part of Windows and forward-slash paths", () => {

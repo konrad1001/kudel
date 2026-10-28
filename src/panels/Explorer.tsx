@@ -18,7 +18,8 @@ import {
   useExplorer,
 } from "../files/explorerStore";
 import type { DirEntry } from "../files/native";
-import { baseName, isCodeFile, samePath } from "../files/paths";
+import { baseName, isAudioFile, isCodeFile, samePath } from "../files/paths";
+import { stopPreview, togglePreview, usePreview } from "../samples/preview";
 
 export function Explorer() {
   const root = useExplorer((s) => s.root);
@@ -30,6 +31,15 @@ export function Explorer() {
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
+  // Escape stops a sample preview, wherever focus is.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && usePreview.getState().path) stopPreview();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   if (!visible) return null;
@@ -115,7 +125,10 @@ function EntryRow({
       (tab) => tab.id === s.playingId && samePath(tab.filePath, entry.path),
     ),
   );
-  const openable = entry.isDir || isCodeFile(entry.name);
+  const audio = !entry.isDir && isAudioFile(entry.name);
+  const previewing = usePreview((s) => samePath(s.path, entry.path));
+  const openable = entry.isDir || isCodeFile(entry.name) || audio;
+  const isStrudel = entry.name.endsWith(".strudel");
 
   const onClick = () => {
     if (entry.isDir) {
@@ -123,16 +136,18 @@ function EntryRow({
       return;
     }
     selectFile(parent);
-    if (openable) void openPath(entry.path);
+    if (audio) togglePreview(entry.path);
+    else if (openable) void openPath(entry.path);
   };
 
-  const entryName = !entry.name.endsWith(".strudel")
-    ? entry.name
-    : entry.name.slice(0, -8);
+  const entryName = !isStrudel ? entry.name : entry.name.slice(0, -8);
 
-  console.log(entryName);
-
-  const classes = ["explorer-row", active && "active", !openable && "dim"]
+  const classes = [
+    "explorer-row",
+    active && "active",
+    !openable && "dim",
+    previewing && "previewing",
+  ]
     .filter(Boolean)
     .join(" ");
   return (
@@ -147,9 +162,10 @@ function EntryRow({
         onClick={onClick}
       >
         <span className={`chevron${expanded ? " open" : ""}`}>
-          {entry.isDir && CHEVRON}
+          {entry.isDir ? CHEVRON : audio && WAVE}
         </span>
         <span className="explorer-name">
+          {isStrudel && <span>꩜ </span>}
           {entryName}
           <span className="explorer-file-extension">.strudel</span>
         </span>
@@ -252,6 +268,7 @@ const svg = (path: string) => (
 );
 
 const CHEVRON = svg("M6 4l4 4-4 4");
+const WAVE = svg("M2 8h1.5M4.5 5.5v5M7 3v10M9.5 5v6M12 6.5v3M14 8h0.5");
 const NEW_FILE = svg("M9.5 1.5H3.5v13h9V4.5zM9.5 1.5v3h3M8 7.5v5M5.5 10h5");
 const REFRESH = svg("M13 8a5 5 0 1 1-1.5-3.6M13 2v3h-3");
 const COLLAPSE = svg("M2.5 4.5h8v8h-8zM4.5 2.5h9v9M4.5 8.5h4");

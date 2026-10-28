@@ -1,3 +1,4 @@
+import * as engine from "./engine";
 import { StrudelEditor } from "./editor/StrudelEditor";
 import { FILE_ACTIONS, VIEW_ACTIONS } from "./files/actions";
 import { useTabs } from "./files/tabsStore";
@@ -8,8 +9,12 @@ import { Explorer } from "./panels/Explorer";
 import { MenuBar, type Menu } from "./panels/MenuBar";
 import { TabBar } from "./panels/TabBar";
 import { RUN_ACTIONS } from "./playback";
+import { resolveLocalSamples } from "./samples/resolve";
 import { useShortcuts } from "./shortcuts";
 import "./App.css";
+
+// samples("./drums") in code loads that folder, relative to the file being evaluated.
+engine.setLocalSampleResolver(resolveLocalSamples);
 
 const MENUS: Menu[] = [
   { label: "File", groups: FILE_ACTIONS },

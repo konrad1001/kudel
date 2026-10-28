@@ -8,9 +8,9 @@ use serde::Serialize;
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DirEntry {
-    name: String,
-    path: PathBuf,
-    is_dir: bool,
+    pub(crate) name: String,
+    pub(crate) path: PathBuf,
+    pub(crate) is_dir: bool,
 }
 
 // One level of a folder for the explorer: folders first, then files, each sorted
@@ -65,7 +65,7 @@ fn write_atomic(path: &Path, contents: &str) -> io::Result<()> {
     result
 }
 
-fn read_dir_sorted(path: &Path) -> io::Result<Vec<DirEntry>> {
+pub(crate) fn read_dir_sorted(path: &Path) -> io::Result<Vec<DirEntry>> {
     let mut entries = Vec::new();
     for entry in fs::read_dir(path)? {
         let entry = entry?;

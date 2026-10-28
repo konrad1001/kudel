@@ -48,6 +48,12 @@ declare module "@strudel/webaudio" {
     baseUrl?: string,
     options?: Record<string, unknown>,
   ): Promise<void>;
+  // samples("<prefix>...") calls `resolve` with the whole string instead of fetching
+  // it; resolve returns [sampleMap, baseUrl]. Checked before github:, shabda:, ...
+  export function registerSamplesPrefix(
+    prefix: string,
+    resolve: (url: string) => Promise<[Record<string, unknown>, string]>,
+  ): void;
 }
 
 declare module "@strudel/soundfonts" {

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { listDir, type DirEntry } from "./native";
+import { allowAssetFolder, listDir, type DirEntry } from "./native";
 
 // The explorer sidebar: the open folder and how it is expanded. UI-only state.
 interface ExplorerState {
@@ -44,6 +44,8 @@ export async function setRoot(root: string): Promise<void> {
     rootMissing: false,
     visible: true,
   });
+  // So audio files in the folder can be previewed. A refusal only disables previews.
+  allowAssetFolder(root).catch(() => {});
   await refresh();
 }
 

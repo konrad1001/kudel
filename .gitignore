@@ -25,3 +25,5 @@ dist-ssr
 
 # Strudel files
 *.strudel
+*.wav
+*.mp3
