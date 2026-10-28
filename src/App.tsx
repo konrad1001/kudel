@@ -7,12 +7,14 @@ import { ErrorBar } from "./panels/ErrorBar";
 import { Explorer } from "./panels/Explorer";
 import { MenuBar, type Menu } from "./panels/MenuBar";
 import { TabBar } from "./panels/TabBar";
+import { RUN_ACTIONS } from "./playback";
 import { useShortcuts } from "./shortcuts";
 import "./App.css";
 
 const MENUS: Menu[] = [
   { label: "File", groups: FILE_ACTIONS },
   { label: "View", groups: VIEW_ACTIONS },
+  { label: "Run", groups: RUN_ACTIONS },
 ];
 const ACTIONS = MENUS.flatMap((menu) => menu.groups.flat());
 // The ways to get a file open, listed where the editor would be.

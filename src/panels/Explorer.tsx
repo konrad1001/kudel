@@ -84,6 +84,9 @@ function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; d
   const expanded = useExplorer((s) => !!s.expanded[entry.path]);
   const active = useTabs((s) => samePath(selectActiveTab(s)?.filePath ?? null, entry.path));
   const dirty = useTabs((s) => s.tabs.some((tab) => tab.dirty && samePath(tab.filePath, entry.path)));
+  const playing = useTabs((s) =>
+    s.tabs.some((tab) => tab.id === s.playingId && samePath(tab.filePath, entry.path)),
+  );
   const openable = entry.isDir || isCodeFile(entry.name);
 
   const onClick = () => {
@@ -109,6 +112,11 @@ function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; d
       >
         <span className={`chevron${expanded ? " open" : ""}`}>{entry.isDir && CHEVRON}</span>
         <span className="explorer-name">{entry.name}</span>
+        {playing && (
+          <span className="playing-mark" title="Playing">
+            ▶
+          </span>
+        )}
         {dirty && <span className="dirty-dot">●</span>}
       </div>
       {entry.isDir && expanded && <DirChildren dir={entry.path} depth={depth + 1} />}

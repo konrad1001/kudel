@@ -1,5 +1,10 @@
 /* --background, --foreground, --gutterForeground, ... are set by the active Strudel theme */
 
+:root {
+  /* Marks whatever is making sound: the playing tab, its file, the stop button. */
+  --playing: #8fd16a;
+}
+
 html,
 body,
 #root {
@@ -255,13 +260,54 @@ body {
   z-index: 5;
 }
 
-.tab-bar {
+.editor-header {
   flex: none;
   display: flex;
-  overflow-x: auto;
   background-color: var(--lineHighlight, #ffffff08);
   border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
   user-select: none;
+}
+
+.tab-bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+}
+
+.editor-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.play-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: default;
+}
+
+.play-button:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.play-button.playing {
+  color: var(--playing);
+  background-color: color-mix(in srgb, var(--playing) 15%, transparent);
+  border-color: color-mix(in srgb, var(--playing) 50%, transparent);
+}
+
+.play-button.playing:hover {
+  background-color: color-mix(in srgb, var(--playing) 25%, transparent);
 }
 
 .tab-bar::-webkit-scrollbar {
@@ -293,13 +339,24 @@ body {
 .tab.active {
   background-color: var(--background, #0c0c0c);
   border-top-color: var(--caret, #f2f2f2);
-  /* Covers the bar's bottom border so the tab joins the editor. */
-  margin-bottom: -1px;
 }
 
-.tab-playing {
+.tab.playing {
+  border-top-color: var(--playing);
+}
+
+.tab.playing .tab-title {
+  color: var(--playing);
+}
+
+.playing-mark {
+  flex: none;
   font-size: 9px;
-  color: #8fd16a;
+  color: var(--playing);
+}
+
+.explorer-row .playing-mark {
+  margin-left: 6px;
 }
 
 .tab-close {
