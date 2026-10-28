@@ -11,7 +11,9 @@ export function TabBar() {
 
   // Keep the active tab in view when there are more tabs than fit.
   useEffect(() => {
-    barRef.current?.querySelector(".tab.active")?.scrollIntoView({ block: "nearest", inline: "nearest" });
+    barRef.current
+      ?.querySelector(".tab.active")
+      ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [activeId]);
 
   if (tabs.length === 0) return null;
@@ -40,7 +42,9 @@ export function TabBar() {
 // Plays the active tab, or stops it when it is the one playing. Playing a tab while
 // another plays replaces it, as Ctrl+Enter does.
 function PlayButton() {
-  const playingHere = useTabs((s) => s.activeId !== null && s.playingId === s.activeId);
+  const playingHere = useTabs(
+    (s) => s.activeId !== null && s.playingId === s.activeId,
+  );
   const label = playingHere ? "Stop (Ctrl+.)" : "Play (Ctrl+Enter)";
   return (
     <button
@@ -62,7 +66,7 @@ function TabItem({ tab }: { tab: Tab }) {
   const active = useTabs((s) => s.activeId === tab.id);
   const playing = useTabs((s) => s.playingId === tab.id);
   const title = tabTitle(tab);
-  const classes = ["tab", active && "active", tab.dirty && "dirty", playing && "playing"]
+  const classes = ["tab", active && "active", tab.dirty && "dirty"]
     .filter(Boolean)
     .join(" ");
 

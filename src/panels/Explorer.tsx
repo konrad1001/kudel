@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { createFileIn, openFile, openFolder, openPath } from "../files/actions";
 import { selectActiveTab, useTabs } from "../files/tabsStore";
 import {
@@ -58,10 +64,18 @@ function FolderView({ root }: { root: string }) {
         <span className="explorer-folder">{baseName(root)}</span>
         <IconButton title="New File" onClick={startNewFile} icon={NEW_FILE} />
         <IconButton title="Refresh" onClick={refresh} icon={REFRESH} />
-        <IconButton title="Collapse Folders" onClick={collapseAll} icon={COLLAPSE} />
+        <IconButton
+          title="Collapse Folders"
+          onClick={collapseAll}
+          icon={COLLAPSE}
+        />
       </div>
       <div className="explorer-tree" role="tree">
-        {missing ? <p className="explorer-empty">Folder not found.</p> : <DirChildren dir={root} depth={0} />}
+        {missing ? (
+          <p className="explorer-empty">Folder not found.</p>
+        ) : (
+          <DirChildren dir={root} depth={0} />
+        )}
       </div>
     </>
   );
@@ -80,12 +94,26 @@ function DirChildren({ dir, depth }: { dir: string; depth: number }) {
   );
 }
 
-function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; depth: number }) {
+function EntryRow({
+  entry,
+  parent,
+  depth,
+}: {
+  entry: DirEntry;
+  parent: string;
+  depth: number;
+}) {
   const expanded = useExplorer((s) => !!s.expanded[entry.path]);
-  const active = useTabs((s) => samePath(selectActiveTab(s)?.filePath ?? null, entry.path));
-  const dirty = useTabs((s) => s.tabs.some((tab) => tab.dirty && samePath(tab.filePath, entry.path)));
+  const active = useTabs((s) =>
+    samePath(selectActiveTab(s)?.filePath ?? null, entry.path),
+  );
+  const dirty = useTabs((s) =>
+    s.tabs.some((tab) => tab.dirty && samePath(tab.filePath, entry.path)),
+  );
   const playing = useTabs((s) =>
-    s.tabs.some((tab) => tab.id === s.playingId && samePath(tab.filePath, entry.path)),
+    s.tabs.some(
+      (tab) => tab.id === s.playingId && samePath(tab.filePath, entry.path),
+    ),
   );
   const openable = entry.isDir || isCodeFile(entry.name);
 
@@ -98,7 +126,15 @@ function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; d
     if (openable) void openPath(entry.path);
   };
 
-  const classes = ["explorer-row", active && "active", !openable && "dim"].filter(Boolean).join(" ");
+  const entryName = !entry.name.endsWith(".strudel")
+    ? entry.name
+    : entry.name.slice(0, -8);
+
+  console.log(entryName);
+
+  const classes = ["explorer-row", active && "active", !openable && "dim"]
+    .filter(Boolean)
+    .join(" ");
   return (
     <>
       <div
@@ -110,8 +146,14 @@ function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; d
         title={entry.path}
         onClick={onClick}
       >
-        <span className={`chevron${expanded ? " open" : ""}`}>{entry.isDir && CHEVRON}</span>
-        <span className="explorer-name">{entry.name}</span>
+        <span className={`chevron${expanded ? " open" : ""}`}>
+          {entry.isDir && CHEVRON}
+        </span>
+        <span className="explorer-name">
+          {entryName}
+          <span className="explorer-file-extension">.strudel</span>
+        </span>
+
         {playing && (
           <span className="playing-mark" title="Playing">
             ▶
@@ -119,7 +161,9 @@ function EntryRow({ entry, parent, depth }: { entry: DirEntry; parent: string; d
         )}
         {dirty && <span className="dirty-dot">●</span>}
       </div>
-      {entry.isDir && expanded && <DirChildren dir={entry.path} depth={depth + 1} />}
+      {entry.isDir && expanded && (
+        <DirChildren dir={entry.path} depth={depth + 1} />
+      )}
     </>
   );
 }
@@ -156,7 +200,8 @@ function ResizeHandle() {
   };
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragging.current) return;
-    const left = event.currentTarget.parentElement?.getBoundingClientRect().left ?? 0;
+    const left =
+      event.currentTarget.parentElement?.getBoundingClientRect().left ?? 0;
     setWidth(event.clientX - left);
   };
   return (
@@ -169,9 +214,23 @@ function ResizeHandle() {
   );
 }
 
-function IconButton({ title, onClick, icon }: { title: string; onClick: () => unknown; icon: ReactNode }) {
+function IconButton({
+  title,
+  onClick,
+  icon,
+}: {
+  title: string;
+  onClick: () => unknown;
+  icon: ReactNode;
+}) {
   return (
-    <button type="button" className="icon-button" title={title} aria-label={title} onClick={onClick}>
+    <button
+      type="button"
+      className="icon-button"
+      title={title}
+      aria-label={title}
+      onClick={onClick}
+    >
       {icon}
     </button>
   );
@@ -180,7 +239,14 @@ function IconButton({ title, onClick, icon }: { title: string; onClick: () => un
 const indent = (depth: number) => 8 + depth * 12;
 
 const svg = (path: string) => (
-  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.2">
+  <svg
+    viewBox="0 0 16 16"
+    width="16"
+    height="16"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.2"
+  >
     <path d={path} />
   </svg>
 );

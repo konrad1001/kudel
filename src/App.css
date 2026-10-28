@@ -2,7 +2,7 @@
 
 :root {
   /* Marks whatever is making sound: the playing tab, its file, the stop button. */
-  --playing: #8fd16a;
+  --playing: #fbfcfb;
 }
 
 html,
@@ -207,6 +207,10 @@ body {
   text-overflow: ellipsis;
 }
 
+.explorer-file-extension {
+  opacity: 0;
+}
+
 .dirty-dot {
   margin-left: 6px;
   font-size: 10px;
@@ -302,8 +306,8 @@ body {
 
 .play-button.playing {
   color: var(--playing);
-  background-color: color-mix(in srgb, var(--playing) 15%, transparent);
-  border-color: color-mix(in srgb, var(--playing) 50%, transparent);
+  /* background-color: color-mix(in srgb, var(--playing) 15%, transparent); */
+  /* border-color: color-mix(in srgb, var(--playing) 50%, transparent); */
 }
 
 .play-button.playing:hover {
