@@ -6,10 +6,16 @@ import { StrudelEditor } from "./editor/StrudelEditor";
 import { FILE_COMMANDS } from "./files/actions";
 import { useTabs } from "./files/tabsStore";
 import { useTabTracking } from "./files/useTabTracking";
+import { KEYS_COMMANDS } from "./keys/keysStore";
+import { LAYOUT_COMMANDS } from "./layout/layoutStore";
+import { registerViews } from "./layout/views";
 import { EmptyEditor } from "./panels/EmptyEditor";
 import { ErrorBar } from "./panels/ErrorBar";
 import { Explorer } from "./panels/Explorer";
+import { Keys } from "./panels/Keys";
 import { MENU_COMMANDS, MenuBar, type Menu } from "./panels/MenuBar";
+import { Panel } from "./panels/Panel";
+import { Sidebar } from "./panels/Sidebar";
 import { TabBar } from "./panels/TabBar";
 import { RUN_COMMANDS } from "./playback";
 import { PREVIEW_COMMANDS } from "./samples/preview";
@@ -20,7 +26,19 @@ import "./App.css";
 // samples("./drums") in code loads that folder, relative to the file being evaluated.
 engine.setLocalSampleResolver(resolveLocalSamples);
 
-registerCommands([...FILE_COMMANDS, ...RUN_COMMANDS, ...PREVIEW_COMMANDS, ...MENU_COMMANDS]);
+registerCommands([
+  ...FILE_COMMANDS,
+  ...RUN_COMMANDS,
+  ...PREVIEW_COMMANDS,
+  ...MENU_COMMANDS,
+  ...LAYOUT_COMMANDS,
+  ...KEYS_COMMANDS,
+]);
+
+registerViews([
+  { id: "explorer", title: "Explorer", region: "sidebar", component: Explorer },
+  { id: "keys", title: "Keys", region: "panel", component: Keys },
+]);
 
 const MENUS: Menu[] = [
   {
@@ -33,7 +51,7 @@ const MENUS: Menu[] = [
   },
   {
     label: "View",
-    groups: [["view.toggleExplorer"], ["editor.next", "editor.previous"]],
+    groups: [["view.toggleExplorer", "view.togglePanel"], ["view.keys"], ["editor.next", "editor.previous"]],
   },
   { label: "Run", groups: [["run.play", "run.stop"]] },
 ];
@@ -64,12 +82,13 @@ function App() {
     <main className="app">
       <MenuBar menus={MENUS} />
       <div className="workbench">
-        <Explorer />
+        <Sidebar />
         <div className="editor-column">
           <TabBar />
           <StrudelEditor hidden={noEditor} />
           {noEditor && <EmptyEditor commands={START_COMMANDS} />}
           <ErrorBar />
+          <Panel />
         </div>
       </div>
     </main>

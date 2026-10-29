@@ -5,6 +5,8 @@ import { askCloseAnyway, loadSession, onWindowClose, readTextFile, saveSession }
 import { useRecent } from "../files/recentStore";
 import { useTabs } from "../files/tabsStore";
 import { decodeFile } from "../files/text";
+import { useKeys } from "../keys/keysStore";
+import { useLayout } from "../layout/layoutStore";
 import { parseSession, restoreTab, serializeSession, type Session } from "./session";
 
 // Saving shortly after changes means a crash or a killed process loses at most this much.
@@ -15,11 +17,11 @@ function currentSession(): Session {
   const activeIndex = tabs.findIndex((tab) => tab.id === activeId);
   const explorer = useExplorer.getState();
   const { files, folders } = useRecent.getState();
+  const { octave, sound, length } = useKeys.getState();
   return {
     folder: explorer.root,
     expanded: explorer.root ? Object.keys(explorer.expanded).filter((dir) => dir !== explorer.root) : [],
-    explorerVisible: explorer.visible,
-    explorerWidth: explorer.width,
+    layout: useLayout.getState(),
     tabs: tabs.map((tab) => {
       const code = engine.getDocCode(tab.id);
       return {
@@ -34,6 +36,7 @@ function currentSession(): Session {
     active: activeIndex === -1 ? null : activeIndex,
     recentFiles: files,
     recentFolders: folders,
+    keys: { octave, sound, length },
   };
 }
 
@@ -42,12 +45,9 @@ async function restore(): Promise<void> {
   if (useTabs.getState().tabs.length > 0 || useExplorer.getState().root) return;
   const session = parseSession(await loadSession().catch(() => null));
   useRecent.setState({ files: session.recentFiles, folders: session.recentFolders });
-  await restoreExplorer({
-    root: session.folder,
-    expanded: session.expanded,
-    visible: session.explorerVisible,
-    width: session.explorerWidth,
-  });
+  useLayout.setState(session.layout);
+  useKeys.setState(session.keys);
+  await restoreExplorer({ root: session.folder, expanded: session.expanded });
   let activeId: string | null = null;
   let lastId: string | null = null;
   for (const [index, tab] of session.tabs.entries()) {
@@ -91,6 +91,11 @@ export function persistSession(): () => void {
     useTabs.subscribe(schedule),
     useExplorer.subscribe(schedule),
     useRecent.subscribe(schedule),
+    useLayout.subscribe(schedule),
+    // Only the settings: playing notes changes the rest many times a second.
+    useKeys.subscribe((s, prev) => {
+      if (s.octave !== prev.octave || s.sound !== prev.sound || s.length !== prev.length) schedule();
+    }),
     engine.onCodeChange(schedule),
     onWindowClose(async () => {
       clearTimeout(timer);

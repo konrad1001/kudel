@@ -102,12 +102,39 @@ async function prebake(): Promise<void> {
   await webaudio.aliasBank(DRUM_MACHINE_ALIASES);
 }
 
-// Evaluation always follows a key press or click, so the AudioContext may start here.
-// initAudio loads the effect worklets but never resumes the context (its
+// resume() resolves once the context runs, but the output device can take longer to
+// start (about 100ms measured in WebView2, more on some hardware), and anything
+// scheduled before then is never heard. getOutputTimestamp's contextTime stays 0 until
+// the device plays; wait for that, giving up after `timeoutMs` so sound never hangs.
+function outputStarted(ac: AudioContext, timeoutMs = 2000): Promise<void> {
+  const start = performance.now();
+  return new Promise((resolve) => {
+    const check = () => {
+      const playing = (ac.getOutputTimestamp?.().contextTime ?? 1) > 0;
+      if (playing || performance.now() - start > timeoutMs) resolve();
+      else setTimeout(check, 10);
+    };
+    check();
+  });
+}
+
+// Evaluation and auditions always follow a key press or click, so the AudioContext may
+// start here. initAudio loads the effect worklets but never resumes the context (its
 // OfflineAudioContext check is always false in superdough 1.3.0), so resume it ourselves.
 function ensureAudio(): Promise<void> {
-  audioReady ??= webaudio.initAudio().then(() => webaudio.getAudioContext().resume());
+  audioReady ??= webaudio.initAudio().then(async () => {
+    const ac = webaudio.getAudioContext();
+    await ac.resume();
+    await outputStarted(ac);
+  });
   return audioReady;
+}
+
+// Starts audio ahead of the first sound, so the output device is already playing when a
+// note comes. Only during a user gesture (a click or key press moments ago): outside
+// one the browser keeps the context suspended and resume() would never settle.
+export function warmUpAudio(): void {
+  if (navigator.userActivation?.isActive) void ensureAudio();
 }
 
 // The keys StrudelMirror reads in @strudel/codemirror's defaultSettings.
@@ -195,6 +222,12 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
     },
   });
   document.addEventListener(core.logger.key, onLog);
+  // superdough builds its output on the first sound, setting the destination's
+  // channelCount to maxChannelCount. On an interface with more than two channels that
+  // makes Chromium reopen the device, and the sound that triggered it is never heard.
+  // Building it now, before any sound (the context is still suspended without a user
+  // gesture), means the device opens with its final layout.
+  webaudio.getSuperdoughAudioController();
   // StrudelMirror's own change handler is internal, so add a second update listener.
   // Added before blankState is captured, so every document gets these.
   mirror.editor.dispatch({
@@ -263,6 +296,46 @@ export async function evaluate(): Promise<void> {
 
 export async function stop(): Promise<void> {
   await mirror?.stop();
+}
+
+export interface Audition {
+  // Mini-notation note name, e.g. "c#4".
+  note: string;
+  // Any registered sound or sample, as in s("…").
+  s: string;
+  // Seconds.
+  duration: number;
+}
+
+// Scheduling a moment ahead, so the first note isn't "in the past" by the time it starts.
+const AUDITION_LATENCY = 0.01;
+
+// Loads whatever file a sound needs for `value` (a sample or a soundfont zone), so
+// superdough finds it cached. Its own loading happens after the start time is fixed,
+// and a note whose file arrives late is skipped. Other sounds need nothing loaded;
+// an unknown one is left for superdough to report.
+async function loadSoundFor(value: { note: string; s: string }): Promise<void> {
+  const data = webaudio.getSound(value.s)?.data;
+  if (data?.type === "sample") await webaudio.getSampleBuffer(value, data.samples);
+  if (data?.type === "soundfont" && Array.isArray(data.fonts)) {
+    // superdough picks the font by n; auditions have none, so the first.
+    await soundfonts.getFontBufferSource(data.fonts[0], value, webaudio.getAudioContext());
+  }
+}
+
+// Plays one note through superdough, so it sounds as it would in a pattern and shares
+// its audio context, but outside the scheduler: it never changes what the pattern plays.
+// clip ends samples at `duration` (like .piano()), release keeps the cut from clicking.
+// The start time is taken once the sound is loaded, so a first press plays late rather
+// than not at all. Rejects for an unknown sound; called from a key press or click, so
+// audio may start.
+export async function auditionNote({ note, s, duration }: Audition): Promise<void> {
+  if (!mirror) return;
+  await mirror.prebaked;
+  await ensureAudio();
+  await loadSoundFor({ note, s });
+  const now = webaudio.getAudioContext().currentTime;
+  await webaudio.superdough({ note, s, clip: 1, release: 0.1 }, now + AUDITION_LATENCY, duration);
 }
 
 // The shown document's code.

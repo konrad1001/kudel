@@ -13,8 +13,10 @@ import {
 const session: Session = {
   folder: "C:\\set",
   expanded: ["C:\\set", "C:\\set\\samples"],
-  explorerVisible: false,
-  explorerWidth: 300,
+  layout: {
+    sidebar: { view: "explorer", visible: false, size: 300 },
+    panel: { view: "keys", visible: true, size: 180 },
+  },
   tabs: [
     { filePath: "C:\\set\\a.strudel", untitled: null, lineEnding: "\r\n", code: null, selection: { anchor: 3, head: 5 } },
     { filePath: null, untitled: 2, lineEnding: "\n", code: 's("bd")', selection: { anchor: 7, head: 7 } },
@@ -22,6 +24,7 @@ const session: Session = {
   active: 1,
   recentFiles: ["C:\\set\\a.strudel"],
   recentFolders: ["C:\\set"],
+  keys: { octave: 3, sound: "gm_epiano1", length: 0.25 },
 };
 
 describe("parseSession", () => {
@@ -51,6 +54,12 @@ describe("parseSession", () => {
     ]);
     expect(parsed.active).toBe(0);
     expect(parsed.recentFiles).toEqual(["C:\\a.strudel"]);
+  });
+
+  it("reads the explorer's place from a session saved before the layout", () => {
+    const parsed = parseSession(JSON.stringify({ version: 1, explorerVisible: false, explorerWidth: 320 }));
+    expect(parsed.layout.sidebar).toEqual({ view: null, visible: false, size: 320 });
+    expect(parsed.layout.panel).toEqual(EMPTY_SESSION.layout.panel);
   });
 });
 

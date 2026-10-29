@@ -39,6 +39,26 @@ declare module "@strudel/webaudio" {
   export function webaudioOutput(...args: unknown[]): unknown;
   export function getAudioContext(): AudioContext;
   export function initAudio(options?: Record<string, unknown>): Promise<void>;
+  // Creates the output (orbits, channel merger, destination gain) on first call, which
+  // also sets the destination's channelCount to its maxChannelCount.
+  export function getSuperdoughAudioController(): unknown;
+  // Plays one sound at AudioContext time `t` for `duration` seconds (there is no
+  // note-off). Rejects if `value.s` isn't a registered sound; skips the note if its
+  // sample is still loading at `t`. Mutates `value`.
+  // A registered sound by name (any case), as registerSound(key, onTrigger, data) left it.
+  // data.type is "sample" (data.samples: its bank), "soundfont" (data.fonts: preset
+  // names), "synth", "wavetable", ...
+  export function getSound(s: string): { onTrigger: unknown; data: Record<string, unknown> & { type?: string } } | undefined;
+  // Loads (once; cached by URL) the file of `bank` that a sample sound plays for
+  // `value` (its note, n, ...), the same choice the sampler makes when triggered.
+  export function getSampleBuffer(value: Record<string, unknown>, bank: unknown): Promise<unknown>;
+  export function superdough(
+    value: Record<string, unknown>,
+    t: number,
+    duration: number,
+    cps?: number,
+    cycle?: number,
+  ): Promise<void>;
   export function registerSynthSounds(): void;
   export function registerZZFXSounds(): void;
   // With a single string argument: the URL of a JSON map of bank aliases.
@@ -59,6 +79,8 @@ declare module "@strudel/webaudio" {
 declare module "@strudel/soundfonts" {
   // Registers the General MIDI instruments (gm_*); presets load on first use.
   export function registerSoundfonts(): void;
+  // Loads (once; cached) the preset zone for value.note and returns an unstarted source.
+  export function getFontBufferSource(font: string, value: Record<string, unknown>, ac: AudioContext): Promise<unknown>;
 }
 
 declare module "@strudel/codemirror" {
@@ -87,6 +109,8 @@ declare module "@strudel/codemirror" {
     // The CodeMirror view; its update listener keeps `code` in step with the document.
     editor: import("@codemirror/view").EditorView;
     code: string;
+    // The constructor's call to the prebake option; evaluation waits for it.
+    prebaked: Promise<unknown>;
     // The repl from @strudel/core/repl.mjs; setCode only updates its dirty tracking.
     repl: {
       scheduler: { started: boolean };

@@ -1,5 +1,7 @@
 import { samePath } from "../files/paths";
 import type { LineEnding } from "../files/text";
+import { DEFAULT_KEYS_SETTINGS, parseKeysSettings, type KeysSettings } from "../keys/notes";
+import { DEFAULT_LAYOUT, parseRegion, type Layout } from "../layout/layout";
 
 // What was open when the app last closed, so the next start picks up where it left
 // off (VS Code's "hot exit"). Kept in the app data folder; the user's own files are
@@ -22,23 +24,23 @@ export interface SessionTab {
 export interface Session {
   folder: string | null;
   expanded: string[];
-  explorerVisible: boolean;
-  explorerWidth: number;
+  layout: Layout;
   tabs: SessionTab[];
   active: number | null;
   recentFiles: string[];
   recentFolders: string[];
+  keys: KeysSettings;
 }
 
 export const EMPTY_SESSION: Session = {
   folder: null,
   expanded: [],
-  explorerVisible: true,
-  explorerWidth: 240,
+  layout: DEFAULT_LAYOUT,
   tabs: [],
   active: null,
   recentFiles: [],
   recentFolders: [],
+  keys: DEFAULT_KEYS_SETTINGS,
 };
 
 const VERSION = 1;
@@ -82,15 +84,20 @@ export function parseSession(text: string | null): Session {
   if (!raw || typeof raw !== "object" || raw.version !== VERSION) return EMPTY_SESSION;
   const tabs = Array.isArray(raw.tabs) ? raw.tabs.map(parseTab).filter((t) => t !== null) : [];
   const active = nat(raw.active, -1);
+  const layout = (raw.layout ?? {}) as Record<string, unknown>;
   return {
     folder: isString(raw.folder) ? raw.folder : null,
     expanded: strings(raw.expanded),
-    explorerVisible: raw.explorerVisible !== false,
-    explorerWidth: nat(raw.explorerWidth, EMPTY_SESSION.explorerWidth),
+    layout: {
+      // Sessions from before the layout kept only the explorer's visibility and width.
+      sidebar: parseRegion("sidebar", layout.sidebar ?? { visible: raw.explorerVisible, size: raw.explorerWidth }),
+      panel: parseRegion("panel", layout.panel),
+    },
     tabs,
     active: active >= 0 && active < tabs.length ? active : tabs.length > 0 ? 0 : null,
     recentFiles: strings(raw.recentFiles).slice(0, MAX_RECENT),
     recentFolders: strings(raw.recentFolders).slice(0, MAX_RECENT),
+    keys: parseKeysSettings(raw.keys),
   };
 }
 

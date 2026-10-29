@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createFileIn, openFile, openFolder, openPath } from "../files/actions";
 import { selectActiveTab, useTabs } from "../files/tabsStore";
 import {
@@ -12,7 +6,6 @@ import {
   collapseAll,
   refresh,
   selectFile,
-  setWidth,
   startNewFile,
   toggleDir,
   useExplorer,
@@ -23,26 +16,20 @@ import { SAMPLE_DRAG_TYPE, type DraggedSample } from "../editor/sampleDrop";
 import { togglePreview, usePreview } from "../samples/preview";
 import { RecentList } from "./RecentList";
 
+// The sidebar's view of the open folder.
 export function Explorer() {
   const root = useExplorer((s) => s.root);
-  const visible = useExplorer((s) => s.visible);
-  const width = useExplorer((s) => s.width);
 
-  // Pick up files added or removed outside the app when the window comes back.
+  // Pick up files added or removed outside the app when the window comes back, and
+  // whatever changed while the sidebar was hidden.
   useEffect(() => {
+    void refresh();
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
 
-  if (!visible) return null;
-  return (
-    <aside className="explorer" style={{ width }}>
-      <div className="explorer-title">Explorer</div>
-      {root ? <FolderView root={root} /> : <NoFolder />}
-      <ResizeHandle />
-    </aside>
-  );
+  return <div className="explorer">{root ? <FolderView root={root} /> : <NoFolder />}</div>;
 }
 
 function NoFolder() {
@@ -214,28 +201,6 @@ function NewFileInput({ dir, depth }: { dir: string; depth: number }) {
         }}
       />
     </div>
-  );
-}
-
-function ResizeHandle() {
-  const dragging = useRef(false);
-  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    dragging.current = true;
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return;
-    const left =
-      event.currentTarget.parentElement?.getBoundingClientRect().left ?? 0;
-    setWidth(event.clientX - left);
-  };
-  return (
-    <div
-      className="explorer-resize"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={() => (dragging.current = false)}
-    />
   );
 }
 

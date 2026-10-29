@@ -80,12 +80,12 @@ Editing comfort for live-coding.
 
 A hideable panel under the editor, and a small keyboard in it for hearing notes and sketching lines to paste into code. Playing keys is an audition, like sample preview: it never changes what the pattern plays. What reaches the code is the note string you copy.
 
-- [ ] **Views and regions:** a view registry (`{ id, title, region, component }`) and a layout store recording which view each region shows, its size and whether it's visible. The explorer becomes the sidebar's first view. Adding a panel later means registering a view and a command, not editing `App.tsx`.
-- [ ] **Bottom panel** under the editor column: toggled with Ctrl+J (`view.togglePanel`), resized by dragging its top edge, with small text tabs once there's more than one view. Visibility, height and the shown view are saved in the session.
-- [ ] **Focus awareness:** a `panelFocus` context key (focus inside the panel), and `keysFocus` for the Keys view. The keyboard plays notes only while the Keys view has focus. Clicking into the editor gives typing back immediately, and Escape in the panel returns focus to the editor. The panel shows clearly when it has focus, so it's obvious whether letters will type or play.
-- [ ] **Keys view:** about two octaves of on-screen keys, playable by mouse. Each key shows its letter faintly while the panel has focus.
-- [ ] **Terminal look:** the keyboard looks like ASCII art in a terminal, drawn in the editor's monospace font. Every key, white and black, is the app background colour; keys are told apart only by their outlines (box-drawing style borders, black keys shorter and inset between the white ones) and their letters. A pressed key lights in `--playing`. No gradients, shadows or rounded corners.
-- [ ] **Computer keyboard:**
+- [x] **Views and regions:** a view registry (`{ id, title, region, component }`) and a layout store recording which view each region shows, its size and whether it's visible. The explorer becomes the sidebar's first view. Adding a panel later means registering a view and a command, not editing `App.tsx`.
+- [x] **Bottom panel** under the editor column: toggled with Ctrl+J (`view.togglePanel`), resized by dragging its top edge, with small text tabs once there's more than one view. Visibility, height and the shown view are saved in the session.
+- [x] **Focus awareness:** a `panelFocus` context key (focus inside the panel), and `keysFocus` for the Keys view. The keyboard plays notes only while the Keys view has focus. Clicking into the editor gives typing back immediately, and Escape in the panel returns focus to the editor. The panel shows clearly when it has focus, so it's obvious whether letters will type or play.
+- [x] **Keys view:** about two octaves of on-screen keys, playable by mouse. Each key shows its letter faintly while the panel has focus.
+- [x] **Terminal look:** the keyboard looks like ASCII art in a terminal, drawn in the editor's monospace font. Every key, white and black, is the app background colour; keys are told apart only by their outlines (box-drawing style borders, black keys shorter and inset between the white ones) and their letters. A pressed key lights in `--playing`. No gradients, shadows or rounded corners.
+- [x] **Computer keyboard:**
 
   | Keys | Action |
   |---|---|
@@ -95,9 +95,9 @@ A hideable panel under the editor, and a small keyboard in it for hearing notes 
   | `C` | clear the buffer |
 
   Auto-repeat is ignored. The panel's own key handling stays scoped to the panel element, never `window`.
-- [ ] **Sound:** notes go through superdough with an engine call (`engine.auditionNote({ note, s, duration })`), so they sound like patterns and share their audio context. They have a fixed length, because superdough sets duration at trigger time and has no note-off. The panel has a small sound field (default `piano`, any loaded sound or sample works) and a length field.
-- [ ] **Note buffer:** every played note is appended to a one-line string in mini-notation (`"b5 c5 ~ d4"`), using lowercase note names with octave and sharps as `#` (`c#4`), and `X` adds `~`. It has a copy button, and Ctrl+C copies it while the panel has focus. `C` or a clear button empties it. The buffer is UI-only and isn't saved with the session.
-- [ ] **Pure, tested functions:** key letter + octave → note name, octave limits, and buffer append/rest/clear formatting.
+- [x] **Sound:** notes go through superdough with an engine call (`engine.auditionNote({ note, s, duration })`), so they sound like patterns and share their audio context. They have a fixed length, because superdough sets duration at trigger time and has no note-off. The panel has a small sound field (default `piano`, any loaded sound or sample works) and a length field.
+- [x] **Note buffer:** every played note is appended to a one-line string in mini-notation (`"b5 c5 ~ d4"`), using lowercase note names with octave and sharps as `#` (`c#4`), and `X` adds `~`. It has a copy button, and Ctrl+C copies it while the panel has focus. `C` or a clear button empties it. The buffer is UI-only and isn't saved with the session.
+- [x] **Pure, tested functions:** key letter + octave → note name, octave limits, and buffer append/rest/clear formatting.
 - [ ] **Hardware MIDI (stretch):** Web MIDI input (`navigator.requestMIDIAccess`), whose notes play and fill the buffer the same way. Check first that WebView2/Tauri allows the MIDI permission.
 
 **Done when:** Ctrl+J shows and hides the panel at the size it was left, and that survives a restart. With the Keys view focused, `A`–`K` play notes in the chosen sound, `N`/`M` shift octave, `X` adds `~`, `C` clears, and the buffer copies as a mini-notation string that plays back the same line when pasted into `note("…")`. With the editor focused, every one of those keys types normally. The keyboard is all background-coloured keys with terminal-style outlines, lighting only when pressed.

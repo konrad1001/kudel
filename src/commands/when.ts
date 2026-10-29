@@ -27,9 +27,10 @@ const focused = () => document.activeElement;
 // Focus is inside a CodeMirror editor.
 registerContextKey("editorFocus", () => !!focused()?.closest(".cm-editor"));
 
-// Focus is in a text field of our own (not the code editor), e.g. the new-file name box.
-registerContextKey("inputFocus", () => {
-  const el = focused();
+// A text field of our own (not the code editor), e.g. the new-file name box.
+export function isTextField(el: Element | null): boolean {
   if (!el || el.closest(".cm-editor")) return false;
   return el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement).isContentEditable;
-});
+}
+
+registerContextKey("inputFocus", () => isTextField(focused()));

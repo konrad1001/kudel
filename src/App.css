@@ -3,7 +3,7 @@
 
    == Theme and page     variables, html/body
    == Shared             classes used by more than one panel
-   == Layout             workbench and editor column
+   == Layout             workbench, editor column, sidebar, resize handles
    == Menu bar
    == Explorer
    == Tabs
@@ -11,6 +11,8 @@
    == Empty editor       shown when no file is open
    == Editor             CodeMirror host
    == Error bar
+   == Panel              the region under the editor
+   == Keys               the panel's keyboard
    == Scrollbars
 
    --background, --foreground, --gutterForeground, ... are set by the active Strudel theme. */
@@ -87,6 +89,27 @@ body {
   opacity: 0.45;
 }
 
+/* Text buttons drawn as [label], in the keys panel. */
+.ascii-button {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  opacity: 0.7;
+  cursor: default;
+}
+
+.ascii-button:hover:not(:disabled) {
+  color: var(--caret, #f2f2f2);
+  opacity: 1;
+}
+
+.ascii-button:disabled {
+  opacity: 0.3;
+}
+
 /* ================================================================ */
 /* == Layout                                                        */
 /* ================================================================ */
@@ -108,6 +131,46 @@ body {
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.sidebar {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--gutterForeground, #3c3c3c);
+  user-select: none;
+}
+
+.sidebar-title {
+  padding: 8px 12px 6px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+/* Drag handles on a region's inner edge */
+
+.resize-handle {
+  position: absolute;
+  z-index: 5;
+}
+
+.resize-handle.sidebar {
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+}
+
+.resize-handle.panel {
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
 }
 
 /* ================================================================ */
@@ -182,20 +245,10 @@ body {
 /* ================================================================ */
 
 .explorer {
-  position: relative;
-  flex: none;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--gutterForeground, #3c3c3c);
-  user-select: none;
-}
-
-.explorer-title {
-  padding: 8px 12px 6px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.6;
 }
 
 /* Folder name and its buttons */
@@ -355,18 +408,6 @@ body {
 
 .explorer-empty button:hover {
   border-color: var(--gutterForeground, #3c3c3c);
-}
-
-/* Drag handle on the right edge */
-
-.explorer-resize {
-  position: absolute;
-  top: 0;
-  right: -3px;
-  bottom: 0;
-  width: 6px;
-  cursor: ew-resize;
-  z-index: 5;
 }
 
 /* ================================================================ */
@@ -620,6 +661,246 @@ body {
 
 .error-bar::before {
   content: "✗ ";
+}
+
+/* ================================================================ */
+/* == Panel                                                         */
+/* ================================================================ */
+
+/* Its top border lights while focus is inside, so it's clear whether letters
+   type in the editor or go to the panel. */
+.panel {
+  position: relative;
+  flex: none;
+  max-height: 75%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
+  outline: none;
+  user-select: none;
+}
+
+.panel:focus-within {
+  border-top-color: var(--caret, #f2f2f2);
+}
+
+.panel-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 26px;
+  padding: 0 6px 0 12px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 16px;
+}
+
+.panel-title,
+.panel-tab {
+  opacity: 0.6;
+}
+
+.panel-tab {
+  padding: 2px 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: default;
+}
+
+.panel-tab:hover,
+.panel-tab[aria-selected="true"],
+.panel:focus-within .panel-title {
+  opacity: 1;
+}
+
+.panel-tab[aria-selected="true"] {
+  border-bottom-color: var(--caret, #f2f2f2);
+}
+
+.panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: inherit;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  opacity: 0.6;
+  cursor: default;
+}
+
+.panel-close:hover {
+  background-color: var(--selection, #ffffff26);
+  opacity: 1;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ================================================================ */
+/* == Keys                                                          */
+/* ================================================================ */
+
+.keys {
+  box-sizing: border-box;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 12px 10px;
+  outline: none;
+}
+
+.keys-toolbar {
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.keys-field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.keys-octave {
+  min-width: 1ch;
+  text-align: center;
+}
+
+.keys-input {
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
+  border-radius: 0;
+  outline: none;
+}
+
+.keys-input:focus {
+  border-bottom-color: var(--caret, #f2f2f2);
+}
+
+.keys-sound {
+  width: 16ch;
+}
+
+.keys-length {
+  width: 5ch;
+}
+
+.keys-hint,
+.keys-error {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
+/* The keys only work with focus, so their hints only show then. */
+.keys-hint {
+  opacity: 0;
+}
+
+.keys:focus-within .keys-hint {
+  opacity: 0.45;
+}
+
+.keys-error {
+  color: #f14c4c;
+}
+
+/* Box-drawing text: every key is background, told apart only by its outline. The
+   outlines dim without focus; a sounding key fills in --playing, like a block cursor. */
+.keys-board {
+  flex: none;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.2;
+  opacity: 0.2;
+}
+
+.keys:focus-within .keys-board {
+  opacity: 0.6;
+}
+
+.keys-letter {
+  color: transparent;
+}
+
+.keys:focus-within .keys-letter:not(.lit) {
+  color: color-mix(in srgb, var(--foreground, #cccccc) 45%, transparent);
+}
+
+.keys-board .lit {
+  color: var(--background, #0c0c0c);
+  background-color: var(--playing);
+}
+
+.keys-buffer {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.keys-buffer-line {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+}
+
+.keys-buffer-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  /* The panel turns selection off; this field is for selecting. */
+  user-select: text;
+}
+
+.keys-buffer-text::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+
+.keys-buffer-text::selection {
+  background-color: var(--selection, #ffffff26);
+}
+
+.keys-quote {
+  opacity: 0.4;
 }
 
 /* ================================================================ */
