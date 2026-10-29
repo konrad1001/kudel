@@ -101,3 +101,39 @@ A hideable panel under the editor, and a small keyboard in it for hearing notes 
 - [ ] **Hardware MIDI (stretch):** Web MIDI input (`navigator.requestMIDIAccess`), whose notes play and fill the buffer the same way. Check first that WebView2/Tauri allows the MIDI permission.
 
 **Done when:** Ctrl+J shows and hides the panel at the size it was left, and that survives a restart. With the Keys view focused, `A`–`K` play notes in the chosen sound, `N`/`M` shift octave, `X` adds `~`, `C` clears, and the buffer copies as a mini-notation string that plays back the same line when pasted into `note("…")`. With the editor focused, every one of those keys types normally. The keyboard is all background-coloured keys with terminal-style outlines, lighting only when pressed.
+
+---
+
+## 7. Playing live
+
+Hands-on control while the music runs. Every control is a minimal edit to the code, so undo works and nothing is heard that isn't written.
+
+- [ ] **Number scrubbing:** hold a modifier and drag any number literal in the editor (`.gain(0.8)`, `.lpf(800)`) to change it, re-evaluating as it moves. One drag is one undo step. Step size follows the number's own precision; another modifier gives fine steps.
+- [ ] **Mute/solo per `$:` block:** a small strip of `$:` blocks with M/S toggles that rewrite the code (check the installed source for Strudel's own mute syntax for labels first; otherwise comment the block out). Solo is muting all the others, so it stays visible in the text.
+- [ ] **Evaluate on the next cycle:** Ctrl+Enter waits for the next cycle boundary (optionally every n cycles) before swapping in the new code, like Ableton's launch quantisation, so changes land on the beat. A visible "queued" state until it lands; a second key evaluates immediately.
+
+**Done when:** dragging a number changes the sound live and undoes in one step; muting and soloing a block shows in the code and is heard; an edit evaluated mid-cycle starts exactly at the next cycle.
+
+---
+
+## 8. Audio in and out
+
+Getting audio files into the open folder, where the explorer, previews and `samples('./…')` already work with them.
+
+- [ ] **Import from URL:** paste a link (YouTube, SoundCloud, Bandcamp, anything yt-dlp supports) and get a `.wav` in the open folder (e.g. `samples/imported/`). A Rust command runs `yt-dlp -x --audio-format wav`, streaming its progress to a small panel view, then refreshes the explorer. yt-dlp and ffmpeg are installed with winget and found on PATH, not bundled, so `yt-dlp -U` keeps up with YouTube changes. Local files can be imported the same way.
+- [ ] **Bounce to the folder:** record N cycles of what's playing to a `.wav` in the open folder (e.g. `bounces/`), by tapping superdough's output. It shows up in the explorer, ready to preview, chop, or load again with `samples('./bounces')`.
+
+**Done when:** a pasted URL ends up as a playable `.wav` in the explorer with progress shown on the way; bouncing 4 cycles gives a file exactly 4 cycles long that sounds like what was playing.
+
+---
+
+## 9. Sample editor
+
+A bottom-panel view for one audio file, opened from the explorer (double-click an audio file). Edits never overwrite the original: they write new files, or write positions into the code.
+
+- [ ] **Waveform and markers:** the decoded file drawn in the terminal style, with transients marked. Click to add markers, drag to move them; markers snap to transients. Clicking a region auditions it through superdough. Transient detection is a pure, tested function over the samples (energy jumps, threshold, minimum gap).
+- [ ] **Loop editing:** set the start (snaps to the nearest transient, usually the first downbeat) and the length in bars; the end snaps to where the loop wraps. A beat grid overlays the region so it's visible whether hits sit on the beat; nudge the end until they do. Loop audition plays just the region on repeat, optionally with a click at the code's tempo. Commit as a trimmed new file with short fades plus `s("name").loopAt(n)`, or non-destructively as `.begin(…).end(…).loopAt(n)` on the original. Offer `.splice(n, "0 1 2 …")` for breaks (each slice re-speeded to its step). `loopAt` and `splice` change pitch with tempo; test superdough's phase-vocoder `stretch` before relying on it for pitch-preserving loops (its doc comment and source disagree).
+- [ ] **Slice export:** markers or equal divisions (8, 16, 32) become files (`chops/name/01.wav`, …) with short fades, so `s("name:3")` picks a chop; or, for equal divisions, write `.slice(n, "…")` on the whole file instead. The WAV encoder is a pure, tested function; Rust writes the bytes.
+- [ ] **Tempo estimate:** guess the loop's tempo from transient spacing ("≈ 87.5 bpm → 2 bars") to suggest the loop length, and offer `setcpm(bpm/4)` to match the song to the loop instead of the other way round.
+
+**Done when:** an imported break opens from the explorer, its loop is set in a few clicks with the grid confirming it, and the inserted code plays it in time at any `cps`; exported slices play as `s("name:n")`; the original file is untouched.
