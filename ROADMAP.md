@@ -1,6 +1,6 @@
 # Roadmap: a smooth editor
 
-The next five milestones, in order. Each leaves the app runnable and ends with a "Done when" check. The principles in `CLAUDE.md` apply throughout, especially *code is the source of truth* and *only `src/engine/` imports `@strudel/*`*.
+Each leaves the app runnable and ends with a "Done when" check. The principles in `CLAUDE.md` apply throughout, especially _code is the source of truth_ and _only `src/engine/` imports `@strudel/_`\*.
 
 ---
 
@@ -10,11 +10,11 @@ A reload, crash or closed window currently throws the code away. Fix that before
 
 - [x] Set up vitest (`npx vitest run`) so the pure functions below are tested from the start.
 - [x] First Rust commands in `src-tauri/src/commands/files.rs`: read and write a file, called from the front end through `invoke`.
-- [ ] **Autosave and restore:** save the buffer to the app data directory a few seconds after each edit and on close; reopen it, with the cursor position, on startup.
+- [x] **Autosave and restore:** save the buffer to the app data directory a few seconds after each edit and on close; reopen it, with the cursor position, on startup.
 - [x] **Open / Save / Save As / New** with native dialogs (Ctrl+O, Ctrl+S, Ctrl+Shift+S, Ctrl+N). Pick a file extension (`.strudel` or `.js`).
 - [x] **Explorer sidebar** (VS Code style): open a folder (Ctrl+Shift+O), browse it, click to open, New File, toggle with Ctrl+B.
 - [x] **Tabs**: open files stay open in a tab bar (Ctrl+Tab / Ctrl+Shift+Tab, Ctrl+W, middle-click), each with its own undo history; a centred message when none is open; ▶ marks the tab that is playing.
-- [ ] **Recent files** list (and recent folders; reopen the last folder on startup).
+- [x] **Recent files** list (and recent folders; reopen the last folder on startup).
 - [x] **Window title** shows the file name and an unsaved-changes marker (`● name.strudel - Strudel Studio`).
 - [ ] Ask before closing or opening another file over unsaved changes. (Opening another file asks; closing the window doesn't yet.)
 - [x] Loading a file never evaluates it. (Superseded: each file opens in its own tab with a fresh undo history, rather than replacing the editor text as an undoable edit.)
@@ -23,19 +23,11 @@ A reload, crash or closed window currently throws the code away. Fix that before
 
 ---
 
-## 2. Your own samples
+## 2. ~~Your own samples~~
 
-Audio files sit in the same folder as the code, show up in the explorer, and load with a `samples(...)` call that names them, so the code still says where every sound comes from. Strudel normally fetches samples from URLs; superdough's `registerSamplesPrefix(prefix, resolve)` (in `sampler.mjs`, checked before its built-in `github:`/`local:`/`shabda:` handling) lets the engine resolve a local path into a sample map instead, with no patching.
+**Done when:** ~~a folder of `.wav` files next to a `.strudel` file is audible through `samples('./that-folder')` and `s("name")`; dragging a folder from the explorer writes that line into the code; clicking a sample previews it; nothing outside the open folder is reachable through the asset protocol; the sample-map and naming functions are tested.~~
 
-- [x] **Audio files in the explorer:** `.wav`, `.mp3`, `.ogg`, `.flac` and `.m4a` (what WebView2 can decode; not `.aif`) appear undimmed, with their own icon, and don't open as text.
-- [x] **Preview on click:** play a sample once, outside the pattern, to hear what it is. It never changes the music; a second click or Escape stops it.
-- [x] **Serve local files to Strudel:** Tauri's asset protocol is on with an empty scope, widened at runtime to the open folder and to each folder named in a `samples()` call, never the whole disk. The asset origin is in `connect-src` and `media-src` in both `csp` and `devCsp`.
-- [x] **Folder → sample map**, as a Rust command (`scan_sample_folder`): each subfolder becomes a sound named after it, its audio files (sorted as the explorer shows them) are that sound's variants for `n`, and loose files in the folder become one sound each. A pure name function (`src/samples/sampleMap.ts`) keeps file names as they are where mini-notation allows (letters, digits, `-`, `_`, lower-cased) and numbers clashes `_2`, `_3`. Both unit-tested.
-- [x] **A path prefix in code:** the engine registers `./` and `../` as sample prefixes, so `samples('./drums')` loads a local folder. Paths are relative to the file being evaluated (an unsaved tab uses the open folder). Unknown or empty folders show in the error bar.
-- [ ] **Write-back from the explorer:** drag a sample folder or file into the editor, or use a context-menu entry, to insert the `samples('./…')` line at the top (skipped if it's already there) and the sound name at the cursor. Minimal transactions, so undo works.
-- [x] **New files are picked up** on the next evaluation, without restarting (each `samples()` call rescans its folder).
-
-**Done when:** a folder of `.wav` files next to a `.strudel` file is audible through `samples('./that-folder')` and `s("name")`; dragging a folder from the explorer writes that line into the code; clicking a sample previews it; nothing outside the open folder is reachable through the asset protocol; the sample-map and naming functions are tested.
+**Done**
 
 ---
 
@@ -81,3 +73,31 @@ Editing comfort for live-coding.
 - [ ] **Snippets** for patterns used often, defined in the settings file.
 
 **Done when:** search and replace work with undo; autocomplete and hover docs show for Strudel functions; a single `$:` block can be evaluated on its own; every action is reachable from the command palette.
+
+---
+
+## 6. Bottom panel and keys
+
+A hideable panel under the editor, and a small keyboard in it for hearing notes and sketching lines to paste into code. Playing keys is an audition, like sample preview: it never changes what the pattern plays. What reaches the code is the note string you copy.
+
+- [ ] **Views and regions:** a view registry (`{ id, title, region, component }`) and a layout store recording which view each region shows, its size and whether it's visible. The explorer becomes the sidebar's first view. Adding a panel later means registering a view and a command, not editing `App.tsx`.
+- [ ] **Bottom panel** under the editor column: toggled with Ctrl+J (`view.togglePanel`), resized by dragging its top edge, with small text tabs once there's more than one view. Visibility, height and the shown view are saved in the session.
+- [ ] **Focus awareness:** a `panelFocus` context key (focus inside the panel), and `keysFocus` for the Keys view. The keyboard plays notes only while the Keys view has focus. Clicking into the editor gives typing back immediately, and Escape in the panel returns focus to the editor. The panel shows clearly when it has focus, so it's obvious whether letters will type or play.
+- [ ] **Keys view:** about two octaves of on-screen keys, playable by mouse. Each key shows its letter faintly while the panel has focus.
+- [ ] **Terminal look:** the keyboard looks like ASCII art in a terminal, drawn in the editor's monospace font. Every key, white and black, is the app background colour; keys are told apart only by their outlines (box-drawing style borders, black keys shorter and inset between the white ones) and their letters. A pressed key lights in `--playing`. No gradients, shadows or rounded corners.
+- [ ] **Computer keyboard:**
+
+  | Keys | Action |
+  |---|---|
+  | `A W S E D F T G Y H U J K` | C up to the next C (white and black keys, DAW layout) |
+  | `N` / `M` | octave down / up |
+  | `X` | rest (`~`) |
+  | `C` | clear the buffer |
+
+  Auto-repeat is ignored. The panel's own key handling stays scoped to the panel element, never `window`.
+- [ ] **Sound:** notes go through superdough with an engine call (`engine.auditionNote({ note, s, duration })`), so they sound like patterns and share their audio context. They have a fixed length, because superdough sets duration at trigger time and has no note-off. The panel has a small sound field (default `piano`, any loaded sound or sample works) and a length field.
+- [ ] **Note buffer:** every played note is appended to a one-line string in mini-notation (`"b5 c5 ~ d4"`), using lowercase note names with octave and sharps as `#` (`c#4`), and `X` adds `~`. It has a copy button, and Ctrl+C copies it while the panel has focus. `C` or a clear button empties it. The buffer is UI-only and isn't saved with the session.
+- [ ] **Pure, tested functions:** key letter + octave → note name, octave limits, and buffer append/rest/clear formatting.
+- [ ] **Hardware MIDI (stretch):** Web MIDI input (`navigator.requestMIDIAccess`), whose notes play and fill the buffer the same way. Check first that WebView2/Tauri allows the MIDI permission.
+
+**Done when:** Ctrl+J shows and hides the panel at the size it was left, and that survives a restart. With the Keys view focused, `A`–`K` play notes in the chosen sound, `N`/`M` shift octave, `X` adds `~`, `C` clears, and the buffer copies as a mini-notation string that plays back the same line when pasted into `note("…")`. With the editor focused, every one of those keys types normally. The keyboard is all background-coloured keys with terminal-style outlines, lighting only when pressed.
