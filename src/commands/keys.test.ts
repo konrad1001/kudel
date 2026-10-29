@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shortcutFromEvent } from "./shortcuts";
+import { shortcutFromEvent } from "./keys";
 
 const press = (key: string, mods: { ctrl?: boolean; alt?: boolean; shift?: boolean } = {}) =>
   shortcutFromEvent({

@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { activateTab, closeTab } from "../files/actions";
 import { tabTitle, type Tab } from "../files/tabs";
 import { useTabs } from "../files/tabsStore";
+import { useKeyFor, withKey } from "../commands/keybindings";
 import { play, stop } from "../playback";
 
 export function TabBar() {
@@ -45,7 +46,9 @@ function PlayButton() {
   const playingHere = useTabs(
     (s) => s.activeId !== null && s.playingId === s.activeId,
   );
-  const label = playingHere ? "Stop (Ctrl+.)" : "Play (Ctrl+Enter)";
+  const stopKey = useKeyFor("run.stop");
+  const playKey = useKeyFor("run.play");
+  const label = playingHere ? withKey("Stop", stopKey) : withKey("Play", playKey);
   return (
     <button
       type="button"
@@ -66,6 +69,7 @@ function TabItem({ tab }: { tab: Tab }) {
   const active = useTabs((s) => s.activeId === tab.id);
   const playing = useTabs((s) => s.playingId === tab.id);
   const title = tabTitle(tab);
+  const closeKey = useKeyFor("file.closeEditor");
   const classes = ["tab", active && "active", tab.dirty && "dirty"]
     .filter(Boolean)
     .join(" ");
@@ -91,7 +95,7 @@ function TabItem({ tab }: { tab: Tab }) {
         type="button"
         className="tab-close"
         aria-label={`Close ${title}`}
-        title="Close (Ctrl+W)"
+        title={withKey("Close", closeKey)}
         onClick={(event) => {
           event.stopPropagation();
           void closeTab(tab.id);

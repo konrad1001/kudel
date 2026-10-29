@@ -46,9 +46,14 @@ src/
                and pure functions that rewrite code text (UI → code write-back)
   files/       file, folder and tab actions, the tabs and explorer stores, pure
                path/text/tab helpers; native.ts is the only file here that calls Tauri
+  samples/     local samples: folder → sample map and sound names, the samples('./…')
+               resolver, explorer previews, and drag-to-insert
   panels/      UI panels (menu bar, explorer, settings, transport, sample browser, ...)
   settings/    settings schema, defaults, zustand store
-  shortcuts.ts the Action type (label, shortcut, run) shared by menus and key handling
+  commands/    the command registry (id, label, run), keybindings (key, command id,
+               optional "when" clause over context keys) and the one keyboard
+               dispatcher. Features export their commands; menus and lists use ids.
+               Never add a keydown listener for a shortcut: add a command and a binding
 src-tauri/
   src/commands/   Rust commands, one file per area (settings.rs, files.rs, samples.rs)
 ```

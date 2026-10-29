@@ -1,14 +1,27 @@
-import { Fragment, useEffect, useRef, useState } from "react";
-import type { Action } from "../shortcuts";
+import { Fragment, useEffect, useRef } from "react";
+import { create } from "zustand";
+import { getCommand, type Command } from "../commands/commands";
+import { keyFor, useKeybindings } from "../commands/keybindings";
+import { registerContextKey } from "../commands/when";
 
 export interface Menu {
   label: string;
-  // Separators are drawn between groups.
-  groups: Action[][];
+  // Command ids; separators are drawn between groups.
+  groups: string[][];
 }
 
+// Which menu is open, if any. A store rather than component state so the keyboard
+// can see it ("menuOpen") and close it (menu.close on Escape).
+const useMenuBar = create<{ openIndex: number | null }>(() => ({ openIndex: null }));
+const setOpenIndex = (openIndex: number | null) => useMenuBar.setState({ openIndex });
+
+registerContextKey("menuOpen", () => useMenuBar.getState().openIndex !== null);
+
+export const MENU_COMMANDS: Command[] = [{ id: "menu.close", label: "Close Menu", run: () => setOpenIndex(null) }];
+
 export function MenuBar({ menus }: { menus: Menu[] }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const openIndex = useMenuBar((s) => s.openIndex);
+  const bindings = useKeybindings((s) => s.bindings);
   const barRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -16,15 +29,8 @@ export function MenuBar({ menus }: { menus: Menu[] }) {
     const onPointerDown = (event: PointerEvent) => {
       if (!barRef.current?.contains(event.target as Node)) setOpenIndex(null);
     };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpenIndex(null);
-    };
     window.addEventListener("pointerdown", onPointerDown);
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("pointerdown", onPointerDown);
-      window.removeEventListener("keydown", onKeyDown);
-    };
+    return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [openIndex]);
 
   return (
@@ -46,21 +52,26 @@ export function MenuBar({ menus }: { menus: Menu[] }) {
               {menu.groups.map((group, groupIndex) => (
                 <Fragment key={groupIndex}>
                   {groupIndex > 0 && <div className="menu-separator" role="separator" />}
-                  {group.map((action) => (
-                    <button
-                      key={action.label}
-                      type="button"
-                      role="menuitem"
-                      className="menu-item"
-                      onClick={() => {
-                        setOpenIndex(null);
-                        action.run();
-                      }}
-                    >
-                      <span>{action.label}</span>
-                      {action.shortcut && <span className="menu-shortcut">{action.shortcut}</span>}
-                    </button>
-                  ))}
+                  {group.map((id) => {
+                    const command = getCommand(id);
+                    if (!command) return null;
+                    const key = keyFor(bindings, id);
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        role="menuitem"
+                        className="menu-item"
+                        onClick={() => {
+                          setOpenIndex(null);
+                          command.run();
+                        }}
+                      >
+                        <span>{command.label}</span>
+                        {key && <span className="menu-shortcut">{key}</span>}
+                      </button>
+                    );
+                  })}
                 </Fragment>
               ))}
             </div>

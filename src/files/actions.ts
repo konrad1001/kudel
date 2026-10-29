@@ -1,5 +1,5 @@
 import * as engine from "../engine";
-import type { Action } from "../shortcuts";
+import type { Command } from "../commands/commands";
 import * as explorer from "./explorerStore";
 import {
   askToSave,
@@ -159,26 +159,16 @@ export const saveFileAs = withActiveTab(async (tab) => {
 
 export const closeActiveTab = withActiveTab((tab) => close(tab.id));
 
-export const FILE_ACTIONS: Action[][] = [
-  [
-    { label: "New File", shortcut: "Ctrl+N", run: newFile },
-    { label: "Open File…", shortcut: "Ctrl+O", run: openFile },
-    { label: "Open Folder…", shortcut: "Ctrl+Shift+O", run: openFolder },
-  ],
-  [
-    { label: "Save", shortcut: "Ctrl+S", run: saveFile },
-    { label: "Save As…", shortcut: "Ctrl+Shift+S", run: saveFileAs },
-  ],
-  [
-    { label: "Close Editor", shortcut: "Ctrl+W", run: closeActiveTab },
-    { label: "Close Folder", run: explorer.closeFolder },
-  ],
-];
-
-export const VIEW_ACTIONS: Action[][] = [
-  [{ label: "Toggle Explorer", shortcut: "Ctrl+B", run: explorer.toggleExplorer }],
-  [
-    { label: "Next Editor", shortcut: "Ctrl+Tab", run: () => cycle(1) },
-    { label: "Previous Editor", shortcut: "Ctrl+Shift+Tab", run: () => cycle(-1) },
-  ],
+// Keys for these are in src/commands/keybindings.ts.
+export const FILE_COMMANDS: Command[] = [
+  { id: "file.new", label: "New File", run: newFile },
+  { id: "file.open", label: "Open File…", run: openFile },
+  { id: "file.openFolder", label: "Open Folder…", run: openFolder },
+  { id: "file.save", label: "Save", run: saveFile },
+  { id: "file.saveAs", label: "Save As…", run: saveFileAs },
+  { id: "file.closeEditor", label: "Close Editor", run: closeActiveTab },
+  { id: "file.closeFolder", label: "Close Folder", run: explorer.closeFolder },
+  { id: "view.toggleExplorer", label: "Toggle Explorer", run: explorer.toggleExplorer },
+  { id: "editor.next", label: "Next Editor", run: () => cycle(1) },
+  { id: "editor.previous", label: "Previous Editor", run: () => cycle(-1) },
 ];

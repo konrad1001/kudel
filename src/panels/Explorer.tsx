@@ -20,7 +20,7 @@ import {
 import type { DirEntry } from "../files/native";
 import { baseName, isAudioFile, isCodeFile, samePath } from "../files/paths";
 import { SAMPLE_DRAG_TYPE, type DraggedSample } from "../editor/sampleDrop";
-import { stopPreview, togglePreview, usePreview } from "../samples/preview";
+import { togglePreview, usePreview } from "../samples/preview";
 
 export function Explorer() {
   const root = useExplorer((s) => s.root);
@@ -32,15 +32,6 @@ export function Explorer() {
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, []);
-
-  // Escape stops a sample preview, wherever focus is.
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && usePreview.getState().path) stopPreview();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   if (!visible) return null;

@@ -1,5 +1,5 @@
 import * as engine from "./engine";
-import type { Action } from "./shortcuts";
+import type { Command } from "./commands/commands";
 import { useTabs } from "./files/tabsStore";
 
 // Evaluates the active tab, replacing whatever is playing.
@@ -11,10 +11,7 @@ export function stop(): void {
   void engine.stop();
 }
 
-// Same keys as StrudelMirror's editor keymap, but these work wherever focus is.
-export const RUN_ACTIONS: Action[][] = [
-  [
-    { label: "Play", shortcut: "Ctrl+Enter", run: play },
-    { label: "Stop", shortcut: "Ctrl+.", run: stop },
-  ],
+export const RUN_COMMANDS: Command[] = [
+  { id: "run.play", label: "Play", run: play },
+  { id: "run.stop", label: "Stop", run: stop },
 ];
