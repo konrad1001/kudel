@@ -54,6 +54,39 @@ body {
   color: var(--playing);
 }
 
+/* Recent folders and files, in the explorer and the empty editor. */
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.recent-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.recent-item:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.recent-name {
+  flex: none;
+}
+
+.recent-where {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  opacity: 0.45;
+}
+
 /* ================================================================ */
 /* == Layout                                                        */
 /* ================================================================ */
@@ -535,6 +568,19 @@ body {
 .editor-empty-action dd {
   margin: 0;
   opacity: 0.7;
+}
+
+.editor-empty-recent {
+  display: grid;
+  gap: 6px;
+  width: min(420px, 80%);
+}
+
+.editor-empty-heading {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.4;
 }
 
 /* ================================================================ */

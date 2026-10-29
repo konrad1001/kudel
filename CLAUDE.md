@@ -48,6 +48,10 @@ src/
                path/text/tab helpers; native.ts is the only file here that calls Tauri
   samples/     local samples: folder → sample map and sound names, the samples('./…')
                resolver, explorer previews, and drag-to-insert
+  session/     what was open (folder, tabs, unsaved text, cursors, recents), saved to
+               %APPDATA%\dev.konrad.strudel-studio\session.json a second after each
+               change and on close, and restored on start ("hot exit"). Closing the app
+               never writes the user's files and never asks to save
   panels/      UI panels (menu bar, explorer, settings, transport, sample browser, ...)
   settings/    settings schema, defaults, zustand store
   commands/    the command registry (id, label, run), keybindings (key, command id,

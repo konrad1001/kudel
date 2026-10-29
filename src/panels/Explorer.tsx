@@ -21,6 +21,7 @@ import type { DirEntry } from "../files/native";
 import { baseName, isAudioFile, isCodeFile, samePath } from "../files/paths";
 import { SAMPLE_DRAG_TYPE, type DraggedSample } from "../editor/sampleDrop";
 import { togglePreview, usePreview } from "../samples/preview";
+import { RecentList } from "./RecentList";
 
 export function Explorer() {
   const root = useExplorer((s) => s.root);
@@ -54,6 +55,7 @@ function NoFolder() {
       <button type="button" onClick={openFile}>
         Open File
       </button>
+      <RecentList kind="folders" />
     </div>
   );
 }

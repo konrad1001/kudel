@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import * as engine from "./engine";
 import { registerCommands } from "./commands/commands";
 import { useKeyboard } from "./commands/useKeyboard";
@@ -13,6 +14,7 @@ import { TabBar } from "./panels/TabBar";
 import { RUN_COMMANDS } from "./playback";
 import { PREVIEW_COMMANDS } from "./samples/preview";
 import { resolveLocalSamples } from "./samples/resolve";
+import { persistSession, restoreSessionOnce } from "./session/persist";
 import "./App.css";
 
 // samples("./drums") in code loads that folder, relative to the file being evaluated.
@@ -43,6 +45,20 @@ function App() {
   useKeyboard();
   useTabTracking();
   const noEditor = useTabs((s) => s.activeId === null);
+
+  // Reopen what was open last time, then keep the session saved. Saving starts only
+  // after restoring, so an empty start can never overwrite the saved session.
+  useEffect(() => {
+    let live = true;
+    let stop: (() => void) | undefined;
+    void restoreSessionOnce().then(() => {
+      if (live) stop = persistSession();
+    });
+    return () => {
+      live = false;
+      stop?.();
+    };
+  }, []);
 
   return (
     <main className="app">

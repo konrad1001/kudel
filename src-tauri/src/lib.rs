@@ -12,6 +12,8 @@ pub fn run() {
             commands::files::create_file,
             commands::samples::scan_sample_folder,
             commands::samples::allow_asset_folder,
+            commands::session::load_session,
+            commands::session::save_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

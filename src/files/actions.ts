@@ -4,6 +4,7 @@ import * as explorer from "./explorerStore";
 import {
   askToSave,
   createFile as createFileOnDisk,
+  listDir,
   pickFileToOpen,
   pickFolder,
   pickSavePath,
@@ -12,6 +13,7 @@ import {
   writeTextFile,
 } from "./native";
 import { samePath, withDefaultExtension } from "./paths";
+import { addRecentFile, addRecentFolder, forgetRecent } from "./recentStore";
 import { activeAfterClose, cycleTab, insertIndex, nextUntitled, tabTitle, type Tab } from "./tabs";
 import { selectActiveTab, updateTab, useTabs } from "./tabsStore";
 import { decodeFile, encodeFile, type LineEnding } from "./text";
@@ -40,26 +42,45 @@ function activate(id: string | null): void {
   useTabs.setState({ activeId: id });
 }
 
-function openTab(code: string, filePath: string | null, lineEnding: LineEnding): void {
+interface OpenTabOptions {
+  // The text as last saved, when it differs from `code` (a restored unsaved tab).
+  savedCode?: string;
+  untitled?: number | null;
+  selection?: engine.DocSelection;
+  // Restoring adds tabs at the end without switching to each one.
+  restoring?: boolean;
+}
+
+// Returns the new tab's id.
+function openTab(code: string, filePath: string | null, lineEnding: LineEnding, options: OpenTabOptions = {}): string {
   // Random rather than counted, so ids stay unique even if this module is hot-reloaded
   // while tabs are open. Ids last for the session only; a tab's file is its filePath.
   const id = `tab-${crypto.randomUUID()}`;
-  engine.openDoc(id, code);
+  engine.openDoc(id, code, options.selection);
   const { tabs, activeId } = useTabs.getState();
+  const savedCode = options.savedCode ?? code;
   const tab: Tab = {
     id,
     filePath,
-    untitled: filePath ? null : nextUntitled(tabs),
+    untitled: filePath ? null : (options.untitled ?? nextUntitled(tabs)),
     lineEnding,
-    savedCode: code,
-    dirty: false,
+    savedCode,
+    dirty: code !== savedCode,
   };
-  const at = insertIndex(
-    tabs.map((t) => t.id),
-    activeId,
-  );
+  const at = options.restoring
+    ? tabs.length
+    : insertIndex(
+        tabs.map((t) => t.id),
+        activeId,
+      );
   useTabs.setState({ tabs: [...tabs.slice(0, at), tab, ...tabs.slice(at)] });
-  activate(id);
+  if (!options.restoring) activate(id);
+  return id;
+}
+
+// For src/session: reopens a tab as it was when the app closed.
+export function openRestoredTab(code: string, filePath: string | null, lineEnding: LineEnding, options: OpenTabOptions): string {
+  return openTab(code, filePath, lineEnding, { ...options, restoring: true });
 }
 
 // Opens `path` in a new tab, or switches to the tab that already has it.
@@ -67,10 +88,11 @@ async function load(path: string): Promise<void> {
   const open = useTabs.getState().tabs.find((tab) => samePath(tab.filePath, path));
   if (open) {
     activate(open.id);
-    return;
+  } else {
+    const { code, lineEnding } = decodeFile(await readTextFile(path));
+    openTab(code, path, lineEnding);
   }
-  const { code, lineEnding } = decodeFile(await readTextFile(path));
-  openTab(code, path, lineEnding);
+  addRecentFile(path);
 }
 
 // Saves to `path`, or to the tab's own file, asking for one if it has none.
@@ -81,6 +103,7 @@ async function save(tab: Tab, path?: string | null): Promise<boolean> {
   const code = engine.getDocCode(tab.id);
   await writeTextFile(target, encodeFile(code, tab.lineEnding));
   updateTab(tab.id, { filePath: target, untitled: null, savedCode: code, dirty: false });
+  addRecentFile(target);
   await explorer.refresh();
   return true;
 }
@@ -116,6 +139,7 @@ function withActiveTab(run: (tab: Tab) => Promise<unknown>) {
 export const openPath = fileAction(load);
 export const closeTab = fileAction(close);
 
+// Exported for src/session, which picks the restored active tab.
 export function activateTab(id: string): void {
   activate(id);
   engine.focusEditor();
@@ -138,9 +162,34 @@ export const openFile = fileAction(async () => {
   if (path) await load(path);
 });
 
+async function openFolderPath(path: string): Promise<void> {
+  await explorer.setRoot(path);
+  addRecentFolder(path);
+}
+
 export const openFolder = fileAction(async () => {
   const path = await pickFolder();
-  if (path) await explorer.setRoot(path);
+  if (path) await openFolderPath(path);
+});
+
+// From the recent lists. An entry that no longer opens drops off the list.
+export const openRecentFile = fileAction(async (path: string) => {
+  try {
+    await load(path);
+  } catch (err) {
+    forgetRecent(path);
+    throw err;
+  }
+});
+
+export const openRecentFolder = fileAction(async (path: string) => {
+  try {
+    await listDir(path);
+  } catch (err) {
+    forgetRecent(path);
+    throw err;
+  }
+  await openFolderPath(path);
 });
 
 // Creates the file in `dir` and opens it.

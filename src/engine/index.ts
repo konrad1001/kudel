@@ -270,14 +270,34 @@ export function getCode(): string {
   return mirror?.code ?? "";
 }
 
-// Adds a document with its own empty undo history. It is not shown or evaluated.
-export function openDoc(id: string, code: string): void {
+export interface DocSelection {
+  anchor: number;
+  head: number;
+}
+
+// Adds a document with its own empty undo history, the cursor at `selection` (kept
+// inside the text). It is not shown or evaluated.
+export function openDoc(id: string, code: string, selection?: DocSelection): void {
   if (!blankState) throw new Error("engine.openDoc called before engine.init");
+  const clamp = (pos: number) => Math.max(0, Math.min(pos, code.length));
   const state = blankState.update({
     changes: { from: 0, to: blankState.doc.length, insert: code },
+    selection: selection && { anchor: clamp(selection.anchor), head: clamp(selection.head) },
     annotations: Transaction.addToHistory.of(false),
   }).state;
   docs.set(id, { state, scrollTop: 0 });
+}
+
+export function getDocSelection(id: string): DocSelection {
+  const state = id === shownDoc ? mirror?.editor.state : docs.get(id)?.state;
+  const main = state?.selection.main;
+  return { anchor: main?.anchor ?? 0, head: main?.head ?? 0 };
+}
+
+// Scrolls the shown document so its cursor is in view (after restoring a session).
+export function revealCursor(): void {
+  const view = mirror?.editor;
+  if (view && shownDoc !== null) view.dispatch({ scrollIntoView: true });
 }
 
 // Puts a document in the editor, keeping the previous one's state for later.

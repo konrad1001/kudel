@@ -61,6 +61,43 @@ export function assetUrl(path: string): string {
   return convertFileSrc(path);
 }
 
+// The session file in the app data folder; null on first run.
+export function loadSession(): Promise<string | null> {
+  return invoke("load_session");
+}
+
+export function saveSession(contents: string): Promise<void> {
+  return invoke("save_session", { contents });
+}
+
+// Runs `beforeClose` when the window is asked to close; the window then closes
+// unless it resolved false. Returns a function that stops listening.
+export function onWindowClose(beforeClose: () => Promise<boolean>): () => void {
+  let stopped = false;
+  let unlisten: (() => void) | null = null;
+  // Async, so that a missing window (outside Tauri) rejects instead of throwing here.
+  (async () =>
+    getCurrentWindow().onCloseRequested(async (event) => {
+      if (!(await beforeClose())) event.preventDefault();
+    }))()
+    .then((fn) => (stopped ? fn() : (unlisten = fn)))
+    .catch(() => {});
+  return () => {
+    stopped = true;
+    unlisten?.();
+  };
+}
+
+// True to close anyway after the session couldn't be saved.
+export async function askCloseAnyway(problem: string): Promise<boolean> {
+  const choice = await message(`${problem}\n\nUnsaved changes may be lost if you close now.`, {
+    title: TITLE,
+    kind: "warning",
+    buttons: { ok: "Close Anyway", cancel: "Cancel" },
+  });
+  return choice === "Close Anyway" || choice === "Ok";
+}
+
 export async function setWindowTitle(title: string): Promise<void> {
   await getCurrentWindow().setTitle(title);
 }

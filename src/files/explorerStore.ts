@@ -49,6 +49,29 @@ export async function setRoot(root: string): Promise<void> {
   await refresh();
 }
 
+// Puts the explorer back as a session left it. A folder that is gone isn't opened.
+export async function restoreExplorer(view: {
+  root: string | null;
+  expanded: string[];
+  visible: boolean;
+  width: number;
+}): Promise<void> {
+  set({ visible: view.visible });
+  setWidth(view.width);
+  if (!view.root) return;
+  set({
+    root: view.root,
+    children: {},
+    expanded: Object.fromEntries([view.root, ...view.expanded].map((dir) => [dir, true as const])),
+    targetDir: view.root,
+    creatingIn: null,
+    rootMissing: false,
+  });
+  allowAssetFolder(view.root).catch(() => {});
+  await refresh();
+  if (get().rootMissing) closeFolder();
+}
+
 export function closeFolder(): void {
   set({
     root: null,
