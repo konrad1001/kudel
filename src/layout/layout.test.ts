@@ -6,6 +6,7 @@ describe("clampSize", () => {
     expect(clampSize("sidebar", 50)).toBe(160);
     expect(clampSize("sidebar", 300.6)).toBe(301);
     expect(clampSize("panel", 5000)).toBe(800);
+    expect(clampSize("aside", 100)).toBe(240);
     expect(clampSize("section", 10)).toBe(80);
   });
 });

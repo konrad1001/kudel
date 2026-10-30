@@ -92,6 +92,8 @@ export function parseSession(text: string | null): Session {
       // Sessions from before the layout kept only the explorer's visibility and width.
       sidebar: parseRegion("sidebar", layout.sidebar ?? { visible: raw.explorerVisible, size: raw.explorerWidth }),
       panel: parseRegion("panel", layout.panel),
+      aside: parseRegion("aside", layout.aside),
+      maximised: layout.maximised === true,
       sections: parseSections(layout.sections),
     },
     tabs,

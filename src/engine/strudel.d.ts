@@ -124,6 +124,10 @@ declare module "@strudel/codemirror" {
   export const themes: Record<string, unknown>;
   export const settings: Record<string, Record<string, unknown>>;
 
+  // One per editor setting (theme, isLineNumbersDisplayed, ...); StrudelMirror builds
+  // the editor with each setting's extension in its compartment.
+  export const compartments: Record<string, import("@codemirror/state").Compartment>;
+
   // nanostores persistentAtom, saved to localStorage as "codemirror-settings";
   // the StrudelMirror constructor reads it to build the editor.
   export const codemirrorSettings: {

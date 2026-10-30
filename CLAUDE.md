@@ -34,6 +34,7 @@ npm run tauri build         # production build
 npx tsc --noEmit            # typecheck
 npx vitest run              # JS tests
 cd src-tauri; cargo check; cd ..   # Rust check
+npm run docs:strudel        # regenerate docs/strudel-api.{md,json} from installed Strudel
 ```
 
 ## Project layout
@@ -53,12 +54,16 @@ src/
                change and on close, and restored on start ("hot exit"). Closing the app
                never writes the user's files and never asks to save
   layout/      the view registry ({ id, title, region, component }) and the layout store:
-               which view the bottom panel shows, region sizes, whether they're visible.
-               The sidebar stacks all its views as foldable, resizable sections. A new
-               panel registers a view and a command; App.tsx doesn't change
+               which view the bottom panel and the right-hand aside show, region sizes,
+               whether they're visible, and whether the aside is maximised over the
+               editor column. The sidebar stacks all its views as foldable, resizable
+               sections. A new panel registers a view and a command; App.tsx doesn't change
   sounds/      the Sounds view's logic: categories and search over the registered sounds
                (pure, tested) and its store. Clicking a sound is an audition through
                engine.auditionNote, like the Keys view
+  reference/   the Reference view's logic (search, lookup by name, description markup;
+               pure, tested) and its store. It reads docs/strudel-api.json, loaded on
+               first use. Examples open as new tabs; the reference never plays anything
   keys/        the Keys view's logic: letter → note names, the note buffer, the
                keyboard drawing (pure, tested) and its store and commands. Playing a key
                is an audition through engine.auditionNote, never part of the pattern
@@ -74,9 +79,9 @@ src-tauri/
 
 ## Strudel API: verify, don't recall
 
-Strudel changes quickly and its APIs shift between versions. **Do not rely on memory for Strudel function names or signatures.** Before using a Strudel API, read the actual source in `node_modules/@strudel/<package>/` (for example `codemirror.mjs`, `repl.mjs`, and the superdough output and sample-loading code). If the docs at strudel.cc disagree with the installed source, the installed source wins.
+Strudel changes quickly and its APIs shift between versions. **Do not rely on memory for Strudel function names or signatures.** Look functions up in `docs/strudel-api.md` first (`docs/strudel-api.json` has the same data). It's generated from the installed packages by `npm run docs:strudel`, and each entry names its source file and line. For behaviour the comment doesn't cover, and for internals, read the actual source in `node_modules/@strudel/<package>/` (for example `codemirror.mjs`, `repl.mjs`, and the superdough output and sample-loading code). If the docs at strudel.cc disagree with the installed source, the installed source wins.
 
-Pin **exact** versions of every `@strudel/*` package and `superdough` in `package.json` (no `^` or `~`). The packages don't always bump in lockstep; upgrade them deliberately, together, and test.
+Pin **exact** versions of every `@strudel/*` package and `superdough` in `package.json` (no `^` or `~`). The packages don't always bump in lockstep; upgrade them deliberately, together, and test. After an upgrade, rerun `npm run docs:strudel` and read the diff of `docs/strudel-api.md` to see what changed.
 
 ## Known gotchas
 

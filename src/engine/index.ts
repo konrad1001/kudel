@@ -7,6 +7,7 @@ import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
 import * as soundfonts from "@strudel/soundfonts";
 import { EditorState, StateEffect, Transaction, type Extension } from "@codemirror/state";
+import { language } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
 import { soundInfo, type SoundInfo } from "./sounds";
@@ -516,6 +517,37 @@ export function onPlayingChange(listener: PlayingListener): () => void {
 
 export function focusEditor(): void {
   mirror?.editor.focus();
+}
+
+// The word at the cursor in the shown document (a function or control name, say), or
+// null with no document or no word there.
+export function wordAtCursor(): string | null {
+  const view = mirror?.editor;
+  if (!view || shownDoc === null) return null;
+  const range = view.state.wordAt(view.state.selection.main.head);
+  return range ? view.state.sliceDoc(range.from, range.to) : null;
+}
+
+// Shows `code` read-only in `parent`, coloured like the editor: its current theme,
+// language and font. Returns a function that removes it.
+export function mountCodeView(parent: HTMLElement, code: string): () => void {
+  const source = mirror?.editor.state;
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc: code,
+      extensions: [
+        source ? (codemirror.compartments.theme.get(source) ?? []) : [],
+        source?.facet(language)?.extension ?? [],
+        EditorState.readOnly.of(true),
+        EditorView.editable.of(false),
+        EditorView.lineWrapping,
+      ],
+    }),
+  });
+  // StrudelMirror sets the font on its root and scroller, over the theme's.
+  view.scrollDOM.style.fontFamily = container?.style.fontFamily ?? "";
+  return () => view.destroy();
 }
 
 // Editing this module in dev re-runs it: silence the old instance so two

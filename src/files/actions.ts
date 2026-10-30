@@ -157,6 +157,9 @@ function cycle(step: 1 | -1): void {
 
 export const newFile = fileAction(async () => openTab("", null, "\n"));
 
+// A new untitled tab holding `code` (an example from the reference, say).
+export const newFileWithCode = fileAction(async (code: string) => openTab(code, null, "\n"));
+
 export const openFile = fileAction(async () => {
   const path = await pickFileToOpen();
   if (path) await load(path);

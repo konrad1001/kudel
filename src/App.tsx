@@ -7,18 +7,21 @@ import { FILE_COMMANDS } from "./files/actions";
 import { useTabs } from "./files/tabsStore";
 import { useTabTracking } from "./files/useTabTracking";
 import { KEYS_COMMANDS } from "./keys/keysStore";
-import { LAYOUT_COMMANDS } from "./layout/layoutStore";
+import { LAYOUT_COMMANDS, useLayout } from "./layout/layoutStore";
 import { registerViews } from "./layout/views";
+import { Aside } from "./panels/Aside";
 import { EmptyEditor } from "./panels/EmptyEditor";
 import { ErrorBar } from "./panels/ErrorBar";
 import { Explorer } from "./panels/Explorer";
 import { Keys } from "./panels/Keys";
 import { MENU_COMMANDS, MenuBar, type Menu } from "./panels/MenuBar";
 import { Panel } from "./panels/Panel";
+import { Reference } from "./panels/Reference";
 import { Sidebar } from "./panels/Sidebar";
 import { Sounds } from "./panels/Sounds";
 import { TabBar } from "./panels/TabBar";
 import { RUN_COMMANDS } from "./playback";
+import { REFERENCE_COMMANDS } from "./reference/referenceStore";
 import { PREVIEW_COMMANDS } from "./samples/preview";
 import { resolveLocalSamples } from "./samples/resolve";
 import { SOUNDS_COMMANDS } from "./sounds/soundsStore";
@@ -36,12 +39,14 @@ registerCommands([
   ...LAYOUT_COMMANDS,
   ...KEYS_COMMANDS,
   ...SOUNDS_COMMANDS,
+  ...REFERENCE_COMMANDS,
 ]);
 
 registerViews([
   { id: "explorer", title: "Explorer", region: "sidebar", component: Explorer },
   { id: "sounds", title: "Sounds", region: "sidebar", component: Sounds },
   { id: "keys", title: "Keys", region: "panel", component: Keys },
+  { id: "reference", title: "Reference", region: "aside", component: Reference },
 ]);
 
 const MENUS: Menu[] = [
@@ -55,7 +60,11 @@ const MENUS: Menu[] = [
   },
   {
     label: "View",
-    groups: [["view.toggleSidebar", "view.togglePanel"], ["view.sounds", "view.keys"], ["editor.next", "editor.previous"]],
+    groups: [
+      ["view.toggleSidebar", "view.togglePanel", "view.toggleAside", "view.toggleMaximised"],
+      ["view.sounds", "view.keys", "view.reference", "reference.lookUp"],
+      ["editor.next", "editor.previous"],
+    ],
   },
   { label: "Run", groups: [["run.play", "run.stop"]] },
 ];
@@ -67,6 +76,7 @@ function App() {
   useKeyboard();
   useTabTracking();
   const noEditor = useTabs((s) => s.activeId === null);
+  const maximised = useLayout((s) => s.maximised && s.aside.visible);
 
   // Reopen what was open last time, then keep the session saved. Saving starts only
   // after restoring, so an empty start can never overwrite the saved session.
@@ -85,7 +95,7 @@ function App() {
   return (
     <main className="app">
       <MenuBar menus={MENUS} />
-      <div className="workbench">
+      <div className={maximised ? "workbench maximised" : "workbench"}>
         <Sidebar />
         <div className="editor-column">
           <TabBar />
@@ -94,6 +104,7 @@ function App() {
           <ErrorBar />
           <Panel />
         </div>
+        <Aside />
       </div>
     </main>
   );

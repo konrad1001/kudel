@@ -1,7 +1,8 @@
 import type { ComponentType } from "react";
 
-// The places a view can be shown: the sidebar beside the editor, the panel under it.
-export type Region = "sidebar" | "panel";
+// The places a view can be shown: the sidebar left of the editor, the panel under it,
+// the aside right of it.
+export type Region = "sidebar" | "panel" | "aside";
 
 // Something that fills a region, like the explorer or the keys. Adding one means
 // registering it here and adding a command that shows it; App.tsx doesn't change.

@@ -14,6 +14,8 @@
    == Error bar
    == Panel              the region under the editor
    == Keys               the panel's keyboard
+   == Aside              the region right of the editor
+   == Reference          the aside's Strudel API reference
    == Scrollbars
 
    --background, --foreground, --gutterForeground, ... are set by the active Strudel theme. */
@@ -129,7 +131,7 @@ body {
 
 .editor-column {
   flex: 1;
-  min-width: 0;
+  min-width: 160px;
   display: flex;
   flex-direction: column;
 }
@@ -691,7 +693,9 @@ body {
   padding: 0 8px;
 }
 
-.play-button {
+/* The play button and the icons after it. */
+.play-button,
+.editor-action {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -705,8 +709,18 @@ body {
   cursor: default;
 }
 
-.play-button:hover {
+.play-button:hover,
+.editor-action:hover {
   background-color: var(--selection, #ffffff26);
+}
+
+.editor-action {
+  opacity: 0.6;
+}
+
+.editor-action:hover,
+.editor-action[aria-pressed="true"] {
+  opacity: 1;
 }
 
 .play-button.playing {
@@ -886,13 +900,18 @@ body {
   border-bottom-color: var(--caret, #f2f2f2);
 }
 
-.panel-close {
+.panel-buttons {
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.panel-button {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 20px;
   height: 20px;
-  margin-left: auto;
   padding: 0;
   font: inherit;
   font-size: 14px;
@@ -905,7 +924,7 @@ body {
   cursor: default;
 }
 
-.panel-close:hover {
+.panel-button:hover {
   background-color: var(--selection, #ffffff26);
   opacity: 1;
 }
@@ -1059,6 +1078,287 @@ body {
 
 .keys-quote {
   opacity: 0.4;
+}
+
+/* ================================================================ */
+/* == Aside                                                         */
+/* ================================================================ */
+
+/* Shares the panel's header and body classes. Its left border lights while focus is
+   inside. Maximised, it fills the editor column's place (which is hidden). */
+/* Gives way before the editor column does, down to its min-width, when the window is
+   too narrow for its set width. */
+.aside {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 240px;
+  max-width: 75%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--gutterForeground, #3c3c3c);
+  outline: none;
+}
+
+.aside.maximised {
+  flex: 1;
+  max-width: none;
+  min-width: 0;
+}
+
+.aside:focus-within {
+  border-left-color: var(--caret, #f2f2f2);
+}
+
+.aside:focus-within .panel-title {
+  opacity: 1;
+}
+
+.workbench.maximised .editor-column {
+  display: none;
+}
+
+/* ================================================================ */
+/* == Reference                                                     */
+/* ================================================================ */
+
+/* The search on top; under it the names and the entry, stacked in a narrow aside
+   and side by side in a wide one. */
+.reference {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  container-type: inline-size;
+}
+
+.reference-search {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding: 2px 12px 8px;
+}
+
+/* Underlined fields, like the Sounds search. */
+.reference-query,
+.reference-group {
+  min-width: 0;
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
+  border-radius: 0;
+  outline: none;
+}
+
+.reference-query {
+  flex: 1;
+}
+
+.reference-group {
+  flex: none;
+  max-width: 40%;
+}
+
+.reference-query:focus,
+.reference-group:focus {
+  border-bottom-color: var(--caret, #f2f2f2);
+}
+
+.reference-query::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+
+.reference-group option {
+  background: var(--background, #1e1e1e);
+}
+
+.reference-error,
+.reference-empty,
+.reference-hint {
+  padding: 4px 12px;
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.reference-error {
+  color: #f14c4c;
+  opacity: 1;
+}
+
+.reference-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.reference-list {
+  flex: 0 0 35%;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 6px;
+  overflow: auto;
+  list-style: none;
+  font-size: 12px;
+  border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
+  user-select: none;
+}
+
+@container (min-width: 640px) {
+  .reference-body {
+    flex-direction: row;
+  }
+
+  .reference-list {
+    flex: 0 0 220px;
+    border-bottom: none;
+    border-right: 1px solid var(--gutterForeground, #3c3c3c);
+  }
+}
+
+.reference-item {
+  padding: 1px 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reference-item:hover {
+  background-color: var(--lineHighlight, #ffffff08);
+}
+
+.reference-item[aria-selected="true"] {
+  color: var(--caret, #f2f2f2);
+  background-color: var(--selection, #ffffff26);
+}
+
+.reference-aliases {
+  opacity: 0.45;
+}
+
+.reference-none {
+  padding: 1px 12px;
+  opacity: 0.6;
+}
+
+/* The entry reads as text: wider lines, selectable. */
+.reference-entry {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 16px 24px;
+  font-size: 13px;
+  line-height: 1.5;
+  user-select: text;
+}
+
+.reference-entry > * {
+  max-width: 80ch;
+}
+
+.reference-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.reference-signature {
+  margin: 0;
+  font-size: 16px;
+  font-weight: normal;
+  color: var(--caret, #f2f2f2);
+  overflow-wrap: anywhere;
+}
+
+.reference-meta {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.reference-deprecated {
+  color: #f14c4c;
+}
+
+.reference-entry h3 {
+  margin: 16px 0 4px;
+  font-size: 10px;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.reference-entry p {
+  margin: 8px 0;
+}
+
+.reference-entry code {
+  font-family: inherit;
+  color: var(--caret, #f2f2f2);
+}
+
+.reference-bullets {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.reference-params {
+  margin: 0;
+}
+
+.reference-params dt {
+  margin-top: 4px;
+}
+
+.reference-params dd {
+  margin: 0 0 0 16px;
+  opacity: 0.85;
+}
+
+.reference-type {
+  opacity: 0.55;
+}
+
+/* Inline links: to another entry, or a web address to copy. */
+.reference-ref,
+.reference-link {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.reference-ref:hover,
+.reference-link:hover {
+  text-decoration-style: solid;
+}
+
+.reference-example {
+  margin: 8px 0 12px;
+}
+
+.reference-example .cm-editor {
+  font-size: 13px;
+  border: 1px solid var(--gutterForeground, #3c3c3c);
+  border-radius: 3px;
+}
+
+.reference-example .cm-content {
+  padding: 6px 0;
+}
+
+.reference-example-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 2px;
+  font-size: 11px;
 }
 
 /* ================================================================ */

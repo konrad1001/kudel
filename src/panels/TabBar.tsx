@@ -3,6 +3,7 @@ import { activateTab, closeTab } from "../files/actions";
 import { tabTitle, type Tab } from "../files/tabs";
 import { useTabs } from "../files/tabsStore";
 import { useKeyFor, withKey } from "../commands/keybindings";
+import { toggleRegion, useLayout } from "../layout/layoutStore";
 import { play, stop } from "../playback";
 
 export function TabBar() {
@@ -35,6 +36,7 @@ export function TabBar() {
       </div>
       <div className="editor-actions">
         <PlayButton />
+        <AsideButton />
       </div>
     </div>
   );
@@ -60,6 +62,29 @@ function PlayButton() {
     >
       <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
         <path d={playingHere ? "M4 4h8v8H4z" : "M5 3l8 5-8 5z"} />
+      </svg>
+    </button>
+  );
+}
+
+// Shows or hides the right side bar (the reference). Its right column fills while shown.
+function AsideButton() {
+  const shown = useLayout((s) => s.aside.visible);
+  const key = useKeyFor("view.toggleAside");
+  const label = withKey(shown ? "Hide Right Side Bar" : "Show Right Side Bar", key);
+  return (
+    <button
+      type="button"
+      className="editor-action"
+      title={label}
+      aria-label={label}
+      aria-pressed={shown}
+      onClick={() => toggleRegion("aside")}
+    >
+      <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <rect x="2.5" y="3.5" width="11" height="9" rx="1" />
+        <path d="M9.5 3.5v9" />
+        {shown && <rect x="9.5" y="3.5" width="4" height="9" fill="currentColor" stroke="none" />}
       </svg>
     </button>
   );

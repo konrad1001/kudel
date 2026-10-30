@@ -5,7 +5,7 @@ export interface RegionLayout {
   // The shown view's id; null (or an id no longer registered) means the region's first view.
   view: string | null;
   visible: boolean;
-  // Pixels: the sidebar's width, the panel's height.
+  // Pixels: the sidebar's and the aside's width, the panel's height.
   size: number;
 }
 
@@ -20,6 +20,9 @@ export interface SectionLayout {
 export interface Layout {
   sidebar: RegionLayout;
   panel: RegionLayout;
+  aside: RegionLayout;
+  // The aside takes the editor column's place, for reading at full size.
+  maximised: boolean;
   // By view id; a view without an entry uses DEFAULT_SECTION.
   sections: Record<string, SectionLayout>;
 }
@@ -27,6 +30,8 @@ export interface Layout {
 export const DEFAULT_LAYOUT: Layout = {
   sidebar: { view: null, visible: true, size: 240 },
   panel: { view: null, visible: false, size: 240 },
+  aside: { view: null, visible: false, size: 420 },
+  maximised: false,
   sections: {},
 };
 
@@ -35,6 +40,7 @@ export const DEFAULT_SECTION: SectionLayout = { collapsed: false, size: 300 };
 const SIZE_LIMITS: Record<Region | "section", [min: number, max: number]> = {
   sidebar: [160, 600],
   panel: [100, 800],
+  aside: [240, 1400],
   section: [80, 2000],
 };
 

@@ -19,6 +19,9 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+W", command: "file.closeEditor" },
   { key: "Ctrl+B", command: "view.toggleSidebar" },
   { key: "Ctrl+J", command: "view.togglePanel" },
+  { key: "Ctrl+Alt+B", command: "view.toggleAside" },
+  { key: "Ctrl+Shift+M", command: "view.toggleMaximised" },
+  { key: "F1", command: "reference.lookUp" },
   { key: "Ctrl+Tab", command: "editor.next" },
   { key: "Ctrl+Shift+Tab", command: "editor.previous" },
   // Also in StrudelMirror's own editor keymap (with Alt+Enter and Alt+.); these
@@ -45,8 +48,10 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "X", command: "keys.rest", when: "keysFocus" },
   { key: "C", command: "keys.clear", when: "keysFocus" },
   { key: "Ctrl+C", command: "keys.copy", when: "keysFocus" },
-  // Back to the editor from the panel. Before stopPreview, so Escape stops a preview first.
+  // Back to the editor from the panel or the aside. Before stopPreview, so Escape stops a preview first.
   { key: "Escape", command: "view.focusEditor", when: "panelFocus" },
+  // Not from the reference's search box, which handles its own Escape (clear, then leave).
+  { key: "Escape", command: "view.focusEditor", when: "asideFocus && !inputFocus" },
   // Not while typing: vim and text fields need their Escape.
   { key: "Escape", command: "samples.stopPreview", when: "previewing && !editorFocus && !inputFocus" },
   { key: "Escape", command: "menu.close", when: "menuOpen" },

@@ -16,6 +16,8 @@ const session: Session = {
   layout: {
     sidebar: { view: "explorer", visible: false, size: 300 },
     panel: { view: "keys", visible: true, size: 180 },
+    aside: { view: "reference", visible: true, size: 600 },
+    maximised: true,
     sections: { explorer: { collapsed: true, size: 300 }, sounds: { collapsed: false, size: 420 } },
   },
   tabs: [
