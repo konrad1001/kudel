@@ -817,6 +817,118 @@ body {
   line-height: 1.5;
 }
 
+/* Autocomplete: CodeMirror's suggestion list, and the doc box Strudel puts beside it.
+   strudel.cc styles the doc box's classes in its own site CSS, which isn't published,
+   so they're styled here like the Reference view. The extra .cm-editor outranks
+   CodeMirror's own theme rules, which are injected after this file. */
+
+.strudel-root .cm-editor .cm-tooltip.cm-tooltip-autocomplete,
+.strudel-root .cm-editor .cm-tooltip.cm-completionInfo {
+  color: var(--foreground, #cccccc);
+  background-color: var(--background, #0c0c0c);
+  border: 1px solid var(--gutterForeground, #3c3c3c);
+  border-radius: 3px;
+}
+
+.strudel-root .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul {
+  max-height: 14em;
+  font-family: inherit;
+}
+
+.strudel-root .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li {
+  padding: 1px 8px 1px 4px;
+  line-height: 1.5;
+}
+
+.strudel-root .cm-editor .cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected] {
+  color: var(--caret, #f2f2f2);
+  background-color: var(--selection, #ffffff26);
+}
+
+.strudel-root .cm-editor .cm-completionMatchedText {
+  text-decoration: none;
+  color: var(--caret, #f2f2f2);
+}
+
+.strudel-root .cm-editor .cm-completionIcon {
+  opacity: 0.4;
+}
+
+/* The doc box: Strudel's template is full of line breaks, which CodeMirror's
+   pre-line would show as gaps. */
+.strudel-root .cm-editor .cm-tooltip.cm-completionInfo {
+  max-width: 420px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 12px;
+  white-space: normal;
+  line-height: 1.5;
+  user-select: text;
+}
+
+.autocomplete-info-function-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: normal;
+  color: var(--caret, #f2f2f2);
+}
+
+.autocomplete-info-function-synonyms {
+  font-size: 11px;
+  opacity: 0.55;
+}
+
+.autocomplete-info-function-description p {
+  margin: 6px 0;
+}
+
+.autocomplete-info-tooltip code {
+  font-family: inherit;
+  color: var(--caret, #f2f2f2);
+}
+
+.autocomplete-info-section-title {
+  margin: 12px 0 4px;
+  font-size: 10px;
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.autocomplete-info-params-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.autocomplete-info-param-item + .autocomplete-info-param-item {
+  margin-top: 4px;
+}
+
+.autocomplete-info-param-name {
+  color: var(--caret, #f2f2f2);
+}
+
+.autocomplete-info-param-type {
+  margin-left: 0.5em;
+  opacity: 0.55;
+}
+
+.autocomplete-info-param-desc {
+  margin-left: 16px;
+  opacity: 0.85;
+}
+
+.autocomplete-info-example-code {
+  margin: 4px 0 8px;
+  padding: 6px 8px;
+  font: inherit;
+  white-space: pre-wrap;
+  border: 1px solid var(--gutterForeground, #3c3c3c);
+  border-radius: 3px;
+}
+
 /* ================================================================ */
 /* == Error bar                                                     */
 /* ================================================================ */

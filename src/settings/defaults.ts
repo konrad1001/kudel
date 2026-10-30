@@ -14,7 +14,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   isBracketClosingEnabled: true,
   isPatternHighlightingEnabled: true,
   isFlashEnabled: true,
-  isAutoCompletionEnabled: false,
+  isAutoCompletionEnabled: true,
   isTooltipEnabled: false,
   isLineWrappingEnabled: false,
   isTabIndentationEnabled: false,

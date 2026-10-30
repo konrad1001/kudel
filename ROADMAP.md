@@ -66,9 +66,10 @@ Make the state of the music visible at a glance.
 Editing comfort for live-coding.
 
 - [ ] **Search and replace** (Ctrl+F, Ctrl+H). StrudelMirror has CodeMirror search commented out in `initEditor`, so add it as our own editor extension.
-- [ ] **Autocomplete and hover docs** for Strudel functions. Both are existing switches (`isAutoCompletionEnabled`, `isTooltipEnabled`); turn them on, judge the quality, and fill gaps if needed.
+- [x] **Autocomplete** for Strudel functions (`isAutoCompletionEnabled`): on, with its suggestion list and doc box styled to match (strudel.cc's styles for it aren't published). Gap: sound and bank names in `s("…")` / `bank("…")` never complete, because Strudel's link to the sound map is commented out. The full reference is in the right side bar (F1 on a word).
+- [ ] **Hover docs** for Strudel functions: an existing switch (`isTooltipEnabled`); turn it on, judge the quality, and fill gaps if needed.
 - [ ] **Evaluate a single block** using Strudel's `$:` labelled patterns, alongside evaluating everything.
-- [ ] **Hush / panic** key that silences everything immediately.
+- [x] **Hush / panic** key that silences everything immediately. Stop (Ctrl+.) now does this: it fades out and cuts every note already sounding, tails included.
 - [ ] **Command palette** (Ctrl+Shift+P) listing every action with its shortcut, driven by the same keybinding settings as milestone 3.
 - [ ] **Snippets** for patterns used often, defined in the settings file.
 
