@@ -87,14 +87,15 @@ A hideable panel under the editor, and a small keyboard in it for hearing notes 
 - [x] **Terminal look:** the keyboard looks like ASCII art in a terminal, drawn in the editor's monospace font. Every key, white and black, is the app background colour; keys are told apart only by their outlines (box-drawing style borders, black keys shorter and inset between the white ones) and their letters. A pressed key lights in `--playing`. No gradients, shadows or rounded corners.
 - [x] **Computer keyboard:**
 
-  | Keys | Action |
-  |---|---|
+  | Keys                        | Action                                                |
+  | --------------------------- | ----------------------------------------------------- |
   | `A W S E D F T G Y H U J K` | C up to the next C (white and black keys, DAW layout) |
-  | `N` / `M` | octave down / up |
-  | `X` | rest (`~`) |
-  | `C` | clear the buffer |
+  | `N` / `M`                   | octave down / up                                      |
+  | `X`                         | rest (`~`)                                            |
+  | `C`                         | clear the buffer                                      |
 
   Auto-repeat is ignored. The panel's own key handling stays scoped to the panel element, never `window`.
+
 - [x] **Sound:** notes go through superdough with an engine call (`engine.auditionNote({ note, s, duration })`), so they sound like patterns and share their audio context. They have a fixed length, because superdough sets duration at trigger time and has no note-off. The panel has a small sound field (default `piano`, any loaded sound or sample works) and a length field.
 - [x] **Note buffer:** every played note is appended to a one-line string in mini-notation (`"b5 c5 ~ d4"`), using lowercase note names with octave and sharps as `#` (`c#4`), and `X` adds `~`. It has a copy button, and Ctrl+C copies it while the panel has focus. `C` or a clear button empties it. The buffer is UI-only and isn't saved with the session.
 - [x] **Pure, tested functions:** key letter + octave → note name, octave limits, and buffer append/rest/clear formatting.
@@ -137,3 +138,7 @@ A bottom-panel view for one audio file, opened from the explorer (double-click a
 - [ ] **Tempo estimate:** guess the loop's tempo from transient spacing ("≈ 87.5 bpm → 2 bars") to suggest the loop length, and offer `setcpm(bpm/4)` to match the song to the loop instead of the other way round.
 
 **Done when:** an imported break opens from the explorer, its loop is set in a few clicks with the grid confirming it, and the inserted code plays it in time at any `cps`; exported slices play as `s("name:n")`; the original file is untouched.
+
+# Known Bugs
+
+- [ ] Horizontal scrolling along octaves interferes with horizontal scrolling the view in the keyboard panel when the screen is too small to display the full keyboard width.

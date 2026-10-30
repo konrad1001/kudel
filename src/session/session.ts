@@ -1,7 +1,7 @@
 import { samePath } from "../files/paths";
 import type { LineEnding } from "../files/text";
 import { DEFAULT_KEYS_SETTINGS, parseKeysSettings, type KeysSettings } from "../keys/notes";
-import { DEFAULT_LAYOUT, parseRegion, type Layout } from "../layout/layout";
+import { DEFAULT_LAYOUT, parseRegion, parseSections, type Layout } from "../layout/layout";
 
 // What was open when the app last closed, so the next start picks up where it left
 // off (VS Code's "hot exit"). Kept in the app data folder; the user's own files are
@@ -92,6 +92,7 @@ export function parseSession(text: string | null): Session {
       // Sessions from before the layout kept only the explorer's visibility and width.
       sidebar: parseRegion("sidebar", layout.sidebar ?? { visible: raw.explorerVisible, size: raw.explorerWidth }),
       panel: parseRegion("panel", layout.panel),
+      sections: parseSections(layout.sections),
     },
     tabs,
     active: active >= 0 && active < tabs.length ? active : tabs.length > 0 ? 0 : null,

@@ -1,5 +1,5 @@
 import { useKeyFor, withKey } from "../commands/keybindings";
-import { showView, toggleRegion, useLayout, useShownView } from "../layout/layoutStore";
+import { setRegionSize, showView, toggleRegion, useLayout, useShownView } from "../layout/layoutStore";
 import { viewsIn } from "../layout/views";
 import { ResizeHandle } from "./ResizeHandle";
 
@@ -17,7 +17,7 @@ export function Panel() {
   return (
     // Focusable itself, so a click anywhere in it counts as focus in the panel.
     <section className="panel" data-region="panel" tabIndex={-1} style={{ height }}>
-      <ResizeHandle region="panel" />
+      <ResizeHandle edge="top" onResize={(height) => setRegionSize("panel", height)} />
       <header className="panel-header">
         {views.length > 1 ? (
           <div className="panel-tabs" role="tablist">
@@ -47,7 +47,7 @@ export function Panel() {
           ×
         </button>
       </header>
-      <div className="panel-body">
+      <div className="panel-body" data-view={shown.id}>
         <Content />
       </div>
     </section>

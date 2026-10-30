@@ -41,14 +41,41 @@ declare module "@strudel/webaudio" {
   export function initAudio(options?: Record<string, unknown>): Promise<void>;
   // Creates the output (orbits, channel merger, destination gain) on first call, which
   // also sets the destination's channelCount to its maxChannelCount.
-  export function getSuperdoughAudioController(): unknown;
+  export function getSuperdoughAudioController(): SuperdoughAudioController;
+  // superdoughoutput.mjs. Orbits and buses are made on first use, by number. Every voice
+  // connects to its orbit (chosen before its sound loads), each orbit to
+  // output.channelMerger, then output.destinationGain, then the context's destination.
+  export interface SuperdoughAudioController {
+    nodes: Record<string, { disconnect(): void }>;
+    buses: Record<string, AudioNode>;
+    output: {
+      channelMerger: AudioNode | null;
+      destinationGain: GainNode | null;
+      // Builds a new channelMerger and destinationGain, connected to the destination.
+      initializeAudio(): void;
+    };
+  }
   // Plays one sound at AudioContext time `t` for `duration` seconds (there is no
   // note-off). Rejects if `value.s` isn't a registered sound; skips the note if its
   // sample is still loading at `t`. Mutates `value`.
-  // A registered sound by name (any case), as registerSound(key, onTrigger, data) left it.
-  // data.type is "sample" (data.samples: its bank), "soundfont" (data.fonts: preset
-  // names), "synth", "wavetable", ...
-  export function getSound(s: string): { onTrigger: unknown; data: Record<string, unknown> & { type?: string } } | undefined;
+  // A sound as registerSound(key, onTrigger, data) left it. data.type is "sample"
+  // (data.samples: its bank), "soundfont" (data.fonts: preset names), "wavetable"
+  // (data.tables: urls), "synth", "input"; data.prebake is true for sounds loaded with
+  // samples(…, { prebake: true }) and the built-in synths, data.tag what those options gave.
+  // onTrigger plays it at AudioContext time `t`; it resolves without sound if `t` has
+  // passed once its file is loaded.
+  export interface RegisteredSound {
+    onTrigger(t: number, value: Record<string, unknown>, onended: () => void): Promise<unknown>;
+    data: Record<string, unknown> & { type?: string };
+  }
+  // A registered sound by name (any case).
+  export function getSound(s: string): RegisteredSound | undefined;
+  // Every registered sound by its lowercase name (bank aliases included), as a
+  // nanostores map. listen() calls back on each change and returns an unbind function.
+  export const soundMap: {
+    get(): Record<string, RegisteredSound>;
+    listen(listener: () => void): () => void;
+  };
   // Loads (once; cached by URL) the file of `bank` that a sample sound plays for
   // `value` (its note, n, ...), the same choice the sampler makes when triggered.
   export function getSampleBuffer(value: Record<string, unknown>, bank: unknown): Promise<unknown>;

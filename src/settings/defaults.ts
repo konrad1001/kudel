@@ -6,7 +6,7 @@ export const DEFAULT_EDITOR_SETTINGS: EditorSettings = {
   theme: TERMINAL_THEME,
   // Cascadia Mono ships with Windows Terminal
   fontFamily: '"Cascadia Mono", Consolas, monospace',
-  fontSize: 14,
+  fontSize: 12,
   keybindings: "codemirror",
   isLineNumbersDisplayed: true,
   isActiveLineHighlighted: true,

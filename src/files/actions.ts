@@ -1,6 +1,5 @@
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
-import { toggleView } from "../layout/layoutStore";
 import * as explorer from "./explorerStore";
 import {
   askToSave,
@@ -218,7 +217,6 @@ export const FILE_COMMANDS: Command[] = [
   { id: "file.saveAs", label: "Save As…", run: saveFileAs },
   { id: "file.closeEditor", label: "Close Editor", run: closeActiveTab },
   { id: "file.closeFolder", label: "Close Folder", run: explorer.closeFolder },
-  { id: "view.toggleExplorer", label: "Toggle Explorer", run: () => toggleView("explorer") },
   { id: "editor.next", label: "Next Editor", run: () => cycle(1) },
   { id: "editor.previous", label: "Previous Editor", run: () => cycle(-1) },
 ];

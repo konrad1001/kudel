@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
 import { registerContextKey } from "../commands/when";
-import { clampSize, DEFAULT_LAYOUT, shownViewId, type Layout } from "./layout";
+import { clampSize, DEFAULT_LAYOUT, sectionOf, shownViewId, type Layout, type SectionLayout } from "./layout";
 import { getView, viewsIn, type Region, type View } from "./views";
 
 export const useLayout = create<Layout>(() => DEFAULT_LAYOUT);
@@ -32,21 +32,38 @@ export function setRegionSize(region: Region, size: number): void {
   set((s) => ({ [region]: { ...s[region], size: clampSize(region, size) } }));
 }
 
-// Moves focus into a region once it has rendered: to its view's element marked
-// data-autofocus, or else the region itself.
-function focusRegion(region: Region): void {
+function setSection(id: string, change: Partial<SectionLayout>): void {
+  set((s) => ({ sections: { ...s.sections, [id]: { ...sectionOf(s.sections, id), ...change } } }));
+}
+
+export function setSectionSize(id: string, size: number): void {
+  setSection(id, { size: clampSize("section", size) });
+}
+
+// Folds a sidebar section down to its title, or opens it again.
+export function toggleSection(id: string): void {
+  setSection(id, { collapsed: !sectionOf(get().sections, id).collapsed });
+}
+
+// Moves focus into a region once it has rendered: to the element marked
+// data-autofocus in the part showing `viewId` (marked data-view), or else that part,
+// or the region itself.
+function focusRegion(region: Region, viewId?: string): void {
   requestAnimationFrame(() => {
     const el = document.querySelector<HTMLElement>(`[data-region='${region}']`);
-    (el?.querySelector<HTMLElement>("[data-autofocus]") ?? el)?.focus();
+    const part = (viewId && el?.querySelector<HTMLElement>(`[data-view='${viewId}']`)) || el;
+    (part?.querySelector<HTMLElement>("[data-autofocus]") ?? part)?.focus();
   });
 }
 
-// Shows a view in its region, optionally moving focus into it.
+// Shows a view in its region (opening its section, in the sidebar), optionally moving
+// focus into it.
 export function showView(id: string, { focus = false } = {}): void {
   const view = getView(id);
   if (!view) return;
   set((s) => ({ [view.region]: { ...s[view.region], view: id, visible: true } }));
-  if (focus) focusRegion(view.region);
+  if (view.region === "sidebar") setSection(id, { collapsed: false });
+  if (focus) focusRegion(view.region, id);
 }
 
 function hideRegion(region: Region): void {
@@ -76,6 +93,7 @@ export function toggleRegion(region: Region): void {
 }
 
 export const LAYOUT_COMMANDS: Command[] = [
+  { id: "view.toggleSidebar", label: "Toggle Sidebar", run: () => toggleRegion("sidebar") },
   { id: "view.togglePanel", label: "Toggle Panel", run: () => toggleRegion("panel") },
   { id: "view.focusEditor", label: "Focus Editor", run: engine.focusEditor },
 ];

@@ -1,9 +1,8 @@
 import { useRef, type PointerEvent } from "react";
-import { setRegionSize } from "../layout/layoutStore";
-import type { Region } from "../layout/views";
 
-// Drag handle on the inner edge of a region: the sidebar's right edge, the panel's top.
-export function ResizeHandle({ region }: { region: Region }) {
+// Drag handle on an inner edge of its parent: the right edge sets the parent's width
+// (the sidebar), the top edge its height (the panel, a sidebar section).
+export function ResizeHandle({ edge, onResize }: { edge: "right" | "top"; onResize: (size: number) => void }) {
   const dragging = useRef(false);
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     dragging.current = true;
@@ -13,11 +12,11 @@ export function ResizeHandle({ region }: { region: Region }) {
     if (!dragging.current) return;
     const box = event.currentTarget.parentElement?.getBoundingClientRect();
     if (!box) return;
-    setRegionSize(region, region === "sidebar" ? event.clientX - box.left : box.bottom - event.clientY);
+    onResize(edge === "right" ? event.clientX - box.left : box.bottom - event.clientY);
   };
   return (
     <div
-      className={`resize-handle ${region}`}
+      className={`resize-handle ${edge}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={() => (dragging.current = false)}

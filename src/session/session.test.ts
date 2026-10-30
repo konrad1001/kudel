@@ -16,6 +16,7 @@ const session: Session = {
   layout: {
     sidebar: { view: "explorer", visible: false, size: 300 },
     panel: { view: "keys", visible: true, size: 180 },
+    sections: { explorer: { collapsed: true, size: 300 }, sounds: { collapsed: false, size: 420 } },
   },
   tabs: [
     { filePath: "C:\\set\\a.strudel", untitled: null, lineEnding: "\r\n", code: null, selection: { anchor: 3, head: 5 } },

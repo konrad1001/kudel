@@ -16,10 +16,12 @@ import { Keys } from "./panels/Keys";
 import { MENU_COMMANDS, MenuBar, type Menu } from "./panels/MenuBar";
 import { Panel } from "./panels/Panel";
 import { Sidebar } from "./panels/Sidebar";
+import { Sounds } from "./panels/Sounds";
 import { TabBar } from "./panels/TabBar";
 import { RUN_COMMANDS } from "./playback";
 import { PREVIEW_COMMANDS } from "./samples/preview";
 import { resolveLocalSamples } from "./samples/resolve";
+import { SOUNDS_COMMANDS } from "./sounds/soundsStore";
 import { persistSession, restoreSessionOnce } from "./session/persist";
 import "./App.css";
 
@@ -33,10 +35,12 @@ registerCommands([
   ...MENU_COMMANDS,
   ...LAYOUT_COMMANDS,
   ...KEYS_COMMANDS,
+  ...SOUNDS_COMMANDS,
 ]);
 
 registerViews([
   { id: "explorer", title: "Explorer", region: "sidebar", component: Explorer },
+  { id: "sounds", title: "Sounds", region: "sidebar", component: Sounds },
   { id: "keys", title: "Keys", region: "panel", component: Keys },
 ]);
 
@@ -51,13 +55,13 @@ const MENUS: Menu[] = [
   },
   {
     label: "View",
-    groups: [["view.toggleExplorer", "view.togglePanel"], ["view.keys"], ["editor.next", "editor.previous"]],
+    groups: [["view.toggleSidebar", "view.togglePanel"], ["view.sounds", "view.keys"], ["editor.next", "editor.previous"]],
   },
   { label: "Run", groups: [["run.play", "run.stop"]] },
 ];
 
 // The ways to get a file open, listed where the editor would be.
-const START_COMMANDS = ["file.new", "file.open", "file.openFolder", "view.toggleExplorer"];
+const START_COMMANDS = ["file.new", "file.open", "file.openFolder", "view.toggleSidebar"];
 
 function App() {
   useKeyboard();

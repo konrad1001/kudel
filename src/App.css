@@ -6,6 +6,7 @@
    == Layout             workbench, editor column, sidebar, resize handles
    == Menu bar
    == Explorer
+   == Sounds             the sidebar's list of loaded sounds
    == Tabs
    == Play button
    == Empty editor       shown when no file is open
@@ -41,7 +42,7 @@ body {
   background-color: var(--background, #0c0c0c);
   color: var(--foreground, #cccccc);
   font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 13px;
+  font-size: 11px;
   color-scheme: dark;
 }
 
@@ -85,7 +86,7 @@ body {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 9px;
   opacity: 0.45;
 }
 
@@ -142,12 +143,60 @@ body {
   user-select: none;
 }
 
+/* The sidebar's views, stacked. The first open one fills; the others have a height
+   (flex-basis, set inline) and give way when the sidebar is too short. */
+.sidebar-section {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section.fill {
+  flex: 1 1 0;
+  min-height: 80px;
+}
+
+.sidebar-section:not(.fill) {
+  flex: 0 1 auto;
+}
+
+.sidebar-section.collapsed {
+  flex: none;
+}
+
+.sidebar-section + .sidebar-section {
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
+}
+
 .sidebar-title {
-  padding: 8px 12px 6px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 12px 4px 4px;
+  font: inherit;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  text-align: left;
+  color: inherit;
+  background: none;
+  border: none;
   opacity: 0.6;
+  cursor: default;
+}
+
+.sidebar-title:hover {
+  opacity: 1;
+}
+
+.sidebar-title .chevron {
+  margin-right: 0;
+}
+
+.sidebar-title[aria-expanded="true"] .chevron svg {
+  transform: rotate(90deg);
 }
 
 /* Drag handles on a region's inner edge */
@@ -157,7 +206,7 @@ body {
   z-index: 5;
 }
 
-.resize-handle.sidebar {
+.resize-handle.right {
   top: 0;
   right: -3px;
   bottom: 0;
@@ -165,7 +214,7 @@ body {
   cursor: ew-resize;
 }
 
-.resize-handle.panel {
+.resize-handle.top {
   top: -3px;
   left: 0;
   right: 0;
@@ -268,7 +317,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.04em;
 }
 
@@ -411,6 +460,115 @@ body {
 }
 
 /* ================================================================ */
+/* == Sounds                                                        */
+/* ================================================================ */
+
+.sounds {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px 0 12px;
+  outline: none;
+}
+
+.sounds-search {
+  flex: none;
+  padding: 0 2px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--gutterForeground, #3c3c3c);
+  border-radius: 0;
+  outline: none;
+}
+
+.sounds-search:focus {
+  border-bottom-color: var(--caret, #f2f2f2);
+}
+
+.sounds-search::placeholder {
+  color: inherit;
+  opacity: 0.4;
+}
+
+.sounds-categories {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 12px;
+}
+
+.sounds-category {
+  padding: 1px 0;
+  font: inherit;
+  font-size: 11px;
+  color: inherit;
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sounds-category:hover,
+.sounds-category[aria-selected="true"] {
+  opacity: 1;
+}
+
+.sounds-category[aria-selected="true"] {
+  border-bottom-color: var(--caret, #f2f2f2);
+}
+
+.sounds-error {
+  flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: #f14c4c;
+}
+
+/* Names flow like words, wrapping at the sidebar's edge. */
+.sounds-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  column-gap: 1ch;
+  padding-bottom: 8px;
+  line-height: 1.5;
+}
+
+.sound {
+  white-space: nowrap;
+  opacity: 0.8;
+  cursor: default;
+}
+
+.sound:hover {
+  color: var(--caret, #f2f2f2);
+  opacity: 1;
+}
+
+.sound.playing {
+  color: var(--playing);
+  opacity: 1;
+}
+
+.sound-count {
+  opacity: 0.45;
+}
+
+.sounds-empty {
+  opacity: 0.45;
+}
+
+/* ================================================================ */
 /* == Tabs                                                          */
 /* ================================================================ */
 
@@ -499,7 +657,7 @@ body {
 }
 
 .tab-x {
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -577,7 +735,7 @@ body {
 }
 
 .editor-empty-name {
-  font-size: 28px;
+  font-size: 22px;
   letter-spacing: 0.04em;
   opacity: 0.15;
 }
@@ -618,7 +776,7 @@ body {
 }
 
 .editor-empty-heading {
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.4;
@@ -691,7 +849,7 @@ body {
   gap: 16px;
   height: 26px;
   padding: 0 6px 0 12px;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -737,7 +895,7 @@ body {
   margin-left: auto;
   padding: 0;
   font: inherit;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
   color: inherit;
   background: none;
@@ -820,7 +978,7 @@ body {
   margin-left: auto;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 /* The keys only work with focus, so their hints only show then. */

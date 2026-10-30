@@ -53,9 +53,12 @@ src/
                change and on close, and restored on start ("hot exit"). Closing the app
                never writes the user's files and never asks to save
   layout/      the view registry ({ id, title, region, component }) and the layout store:
-               which view the sidebar and the bottom panel show, their size, whether
-               they're visible. A new panel registers a view and a command; App.tsx
-               doesn't change
+               which view the bottom panel shows, region sizes, whether they're visible.
+               The sidebar stacks all its views as foldable, resizable sections. A new
+               panel registers a view and a command; App.tsx doesn't change
+  sounds/      the Sounds view's logic: categories and search over the registered sounds
+               (pure, tested) and its store. Clicking a sound is an audition through
+               engine.auditionNote, like the Keys view
   keys/        the Keys view's logic: letter → note names, the note buffer, the
                keyboard drawing (pure, tested) and its store and commands. Playing a key
                is an audition through engine.auditionNote, never part of the pattern
@@ -87,6 +90,7 @@ Pin **exact** versions of every `@strudel/*` package and `superdough` in `packag
 - **One editor, many documents.** Tabs share the single StrudelMirror. The engine keeps each open document's whole `EditorState` (text, cursor, undo history, Strudel's highlights) and swaps it in with `view.setState` (`openDoc`/`showDoc`/`closeDoc`). New documents derive from a blank state captured at init, so they get every extension. `setState` skips update listeners, so `showDoc` syncs `mirror.code` by hand (that's what `evaluate` reads). Anything that reconfigures the editor live (theme, font, keybindings in milestone 3) only reaches the shown state, so stored states need the same reconfiguration when they're shown. Closing the document whose code is playing stops the sound (principle 1).
 - **HTML5 drag and drop needs `dragDropEnabled: false`** on the window in `tauri.conf.json`. Tauri replaces WebView2's drag-drop handler by default (for its native file-drop events, which we don't use), and every in-page drag then shows the "not allowed" cursor.
 - **First sounds get lost two ways.** (1) superdough fixes a note's start time before loading its sample or soundfont and skips it if the file arrives late ("skip hap: still loading"), so `engine.auditionNote` loads the file first (`getSampleBuffer` / `getFontBufferSource`) and only then schedules. (2) `resume()` resolves before the output device actually plays (about 100ms in WebView2, longer on some hardware), and sound scheduled in that gap is never heard, so `ensureAudio` also waits until `getOutputTimestamp().contextTime` moves. The Keys view calls `engine.warmUpAudio` on focus, so audio is already running before the first key; it only starts audio during a user gesture (`navigator.userActivation.isActive`), because outside one `resume()` never settles.
+- **Stopping only stops the scheduler.** Notes already handed to superdough (scheduled ahead, long samples, release, reverb and delay tails) play out. On stop the engine's `cutSound` gives superdough's audio controller a fresh output and orbits, then fades the old ones out over 30ms and disconnects them. That reaches into `SuperdoughAudioController` internals (`nodes`, `buses`, `output.initializeAudio`), so re-check it when upgrading superdough.
 - **Asset protocol scope.** Local files are only reachable via `convertFileSrc` if their path is inside the configured `assetProtocol.scope`.
 - **Default sounds mirror strudel.cc**, so code behaves the same here as on the site. `src/engine/soundSources.ts` copies the sample banks from strudel.cc's `website/src/repl/prebake.mjs` (not published to npm; read it at the git tag matching our versions), and `src/engine/piano.ts` reproduces its `.piano()`. Re-sync both when upgrading Strudel. They load from the network (`strudel.b-cdn.net`, `felixroos.github.io` for GM soundfonts), so the app isn't offline-capable until local samples are added.
 

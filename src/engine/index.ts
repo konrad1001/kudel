@@ -9,7 +9,10 @@ import * as soundfonts from "@strudel/soundfonts";
 import { EditorState, StateEffect, Transaction, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
+import { soundInfo, type SoundInfo } from "./sounds";
 import "./piano";
+
+export type { SoundInfo } from "./sounds";
 
 let mirror: StrudelMirror | undefined;
 let container: HTMLDivElement | undefined;
@@ -217,6 +220,7 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
         return;
       }
       setPlaying(null);
+      cutSound();
       runtimeError = undefined;
       publishError();
     },
@@ -298,28 +302,74 @@ export async function stop(): Promise<void> {
   await mirror?.stop();
 }
 
+// Seconds the cut sound takes to fade, so stopping doesn't click.
+const CUT_FADE = 0.03;
+
+// Stopping the scheduler only stops new notes. The ones already handed to superdough
+// (up to its latency ahead, and whatever is still sounding: a long sample, a release,
+// reverb and delay tails) would play out. This silences them: the controller gets a
+// fresh output and orbits for later notes, and the old ones fade out and are
+// disconnected, taking every voice routed through them along. The controller's own
+// reset() does the same but disconnects at once, which clicks.
+function cutSound(): void {
+  const ac = webaudio.getAudioContext();
+  const controller = webaudio.getSuperdoughAudioController();
+  const { nodes, buses, output } = controller;
+  const { channelMerger, destinationGain } = output;
+  controller.nodes = {};
+  controller.buses = {};
+  output.initializeAudio();
+  if (destinationGain) {
+    const now = ac.currentTime;
+    destinationGain.gain.setValueAtTime(destinationGain.gain.value, now);
+    destinationGain.gain.linearRampToValueAtTime(0, now + CUT_FADE);
+  }
+  setTimeout(
+    () => {
+      Object.values(nodes).forEach((orbit) => orbit.disconnect());
+      Object.values(buses).forEach((bus) => bus.disconnect());
+      channelMerger?.disconnect();
+      destinationGain?.disconnect();
+    },
+    CUT_FADE * 1000 + 50,
+  );
+}
+
 export interface Audition {
-  // Mini-notation note name, e.g. "c#4".
-  note: string;
+  // Mini-notation note name, e.g. "c#4". Without one a sample plays at its own pitch.
+  note?: string;
   // Any registered sound or sample, as in s("…").
   s: string;
   // Seconds.
   duration: number;
+  // Seconds the sound fades out after `duration`. Defaults to 0.1.
+  release?: number;
 }
 
 // Scheduling a moment ahead, so the first note isn't "in the past" by the time it starts.
 const AUDITION_LATENCY = 0.01;
 
-// Loads whatever file a sound needs for `value` (a sample or a soundfont zone), so
-// superdough finds it cached. Its own loading happens after the start time is fixed,
-// and a note whose file arrives late is skipped. Other sounds need nothing loaded;
-// an unknown one is left for superdough to report.
-async function loadSoundFor(value: { note: string; s: string }): Promise<void> {
-  const data = webaudio.getSound(value.s)?.data;
+// Wavetables already loaded by loadSoundFor.
+const loadedTables = new Set<string>();
+
+// Loads whatever file a sound needs for `value` (a sample, a soundfont zone or a
+// wavetable), so superdough finds it cached. Its own loading happens after the start
+// time is fixed, and a note whose file arrives late is skipped. Other sounds need
+// nothing loaded; an unknown one is left for superdough to report.
+async function loadSoundFor(value: { note?: string; s: string }): Promise<void> {
+  const sound = webaudio.getSound(value.s);
+  const data = sound?.data;
   if (data?.type === "sample") await webaudio.getSampleBuffer(value, data.samples);
   if (data?.type === "soundfont" && Array.isArray(data.fonts)) {
     // superdough picks the font by n; auditions have none, so the first.
     await soundfonts.getFontBufferSource(data.fonts[0], value, webaudio.getAudioContext());
+  }
+  // superdough's wavetable loader isn't exported. Triggering the sound at a time already
+  // past loads the table and caches it (here and in the worklet), then returns silently.
+  // That leaves one unused oscillator node per table.
+  if (sound && data?.type === "wavetable" && !loadedTables.has(value.s)) {
+    await sound.onTrigger(0, { ...value, duration: 0 }, () => {});
+    loadedTables.add(value.s);
   }
 }
 
@@ -329,13 +379,35 @@ async function loadSoundFor(value: { note: string; s: string }): Promise<void> {
 // The start time is taken once the sound is loaded, so a first press plays late rather
 // than not at all. Rejects for an unknown sound; called from a key press or click, so
 // audio may start.
-export async function auditionNote({ note, s, duration }: Audition): Promise<void> {
+export async function auditionNote({ note, s, duration, release = 0.1 }: Audition): Promise<void> {
   if (!mirror) return;
   await mirror.prebaked;
   await ensureAudio();
-  await loadSoundFor({ note, s });
+  const value = note === undefined ? { s } : { note, s };
+  await loadSoundFor(value);
   const now = webaudio.getAudioContext().currentTime;
-  await webaudio.superdough({ note, s, clip: 1, release: 0.1 }, now + AUDITION_LATENCY, duration);
+  await webaudio.superdough({ ...value, clip: 1, release }, now + AUDITION_LATENCY, duration);
+}
+
+const SOUNDS_BATCH_MS = 100;
+
+// Calls `listener` with every registered sound now, and again after changes. Loading
+// registers sounds one at a time (thousands at startup), so changes are batched into
+// one call per SOUNDS_BATCH_MS. Returns an unsubscribe function.
+export function onSoundsChange(listener: (sounds: SoundInfo[]) => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const publish = () => {
+    timer = undefined;
+    listener(Object.entries(webaudio.soundMap.get()).map(([name, { data }]) => soundInfo(name, data)));
+  };
+  publish();
+  const unlisten = webaudio.soundMap.listen(() => {
+    timer ??= setTimeout(publish, SOUNDS_BATCH_MS);
+  });
+  return () => {
+    unlisten();
+    clearTimeout(timer);
+  };
 }
 
 // The shown document's code.

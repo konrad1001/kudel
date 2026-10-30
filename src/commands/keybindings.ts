@@ -17,7 +17,7 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+S", command: "file.save" },
   { key: "Ctrl+Shift+S", command: "file.saveAs" },
   { key: "Ctrl+W", command: "file.closeEditor" },
-  { key: "Ctrl+B", command: "view.toggleExplorer" },
+  { key: "Ctrl+B", command: "view.toggleSidebar" },
   { key: "Ctrl+J", command: "view.togglePanel" },
   { key: "Ctrl+Tab", command: "editor.next" },
   { key: "Ctrl+Shift+Tab", command: "editor.previous" },
