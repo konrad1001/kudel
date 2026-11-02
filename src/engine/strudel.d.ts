@@ -148,6 +148,9 @@ declare module "@strudel/codemirror" {
       scheduler: { started: boolean; cps: number; now(): number };
       // pending is true while an evaluation runs.
       state: { pending: boolean };
+      // Evaluates `code` as StrudelMirror's evaluate does, minus the flash. Errors land
+      // in repl state rather than rejecting.
+      evaluate(code: string, autostart?: boolean): Promise<unknown>;
       setCode?(code: string): void;
     };
     // Also what StrudelMirror's keymap (Alt+Enter) and vim's :w call, via `this`.

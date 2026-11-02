@@ -3,6 +3,7 @@ import * as engine from "../engine";
 import { insertDroppedSample } from "../samples/insert";
 import { DEFAULT_EDITOR_SETTINGS } from "../settings/defaults";
 import { SAMPLE_DROP_EVENT, sampleDrop, type SampleDropEvent } from "./sampleDrop";
+import { scrub } from "./scrub";
 import { TERMINAL_THEME, terminalTheme, terminalThemeSettings } from "./terminalTheme";
 
 // `hidden` while no document is open; the editor stays mounted so its state survives.
@@ -15,7 +16,7 @@ export function StrudelEditor({ hidden }: { hidden: boolean }) {
     engine.registerTheme(TERMINAL_THEME, terminalTheme, terminalThemeSettings);
     engine.init({
       editorSettings: DEFAULT_EDITOR_SETTINGS,
-      extensions: [sampleDrop()],
+      extensions: [sampleDrop(), scrub()],
     });
     return engine.attach(host);
   }, []);

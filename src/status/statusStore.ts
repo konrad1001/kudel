@@ -27,17 +27,30 @@ const set = useStatus.setState;
 // The evaluated code itself, kept out of the store: only whether it still matches matters.
 let evaluatedCode = "";
 
+// "Edited" shows only once the text has differed for this long, so number scrubbing,
+// which edits and re-evaluates many times a second, doesn't make it flicker.
+const EDITED_DELAY_MS = 250;
+let editedTimer: ReturnType<typeof setTimeout> | undefined;
+
 const unsubscribers = [
-  engine.onEvaluated((docId, code) => {
+  engine.onEvaluated((docId, code, quiet) => {
     evaluatedCode = code;
-    set((s) => ({ evaluatedDoc: docId, edited: false, evaluations: s.evaluations + 1 }));
+    clearTimeout(editedTimer);
+    // A scrub's re-evaluations don't flash.
+    set((s) => ({ evaluatedDoc: docId, edited: false, evaluations: s.evaluations + (quiet ? 0 : 1) }));
   }),
   engine.onCodeChange((docId, code) => {
-    if (docId === useStatus.getState().evaluatedDoc) set({ edited: code !== evaluatedCode });
+    if (docId !== useStatus.getState().evaluatedDoc) return;
+    clearTimeout(editedTimer);
+    if (code === evaluatedCode) set({ edited: false });
+    else editedTimer = setTimeout(() => set({ edited: true }), EDITED_DELAY_MS);
   }),
   engine.onError((error) => set({ error })),
 ];
-import.meta.hot?.dispose(() => unsubscribers.forEach((unsubscribe) => unsubscribe()));
+import.meta.hot?.dispose(() => {
+  unsubscribers.forEach((unsubscribe) => unsubscribe());
+  clearTimeout(editedTimer);
+});
 
 // Shows the tab a syntax error is in and puts the cursor where it points.
 export function revealError(): void {

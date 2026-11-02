@@ -957,6 +957,19 @@ body {
   text-decoration: underline;
 }
 
+/* Number scrubbing: the number under the pointer while Alt is held, and the whole
+   editor while a number is being dragged. */
+.strudel-root .cm-editor .cm-scrubNumber {
+  cursor: ew-resize;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.strudel-root .cm-editor.cm-scrubbing,
+.strudel-root .cm-editor.cm-scrubbing * {
+  cursor: ew-resize !important;
+}
+
 /* The line a syntax error points at, in the editor. Outranks the active line. */
 .strudel-root .cm-editor .cm-errorLine {
   background-color: #f14c4c1f;

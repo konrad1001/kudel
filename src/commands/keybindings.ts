@@ -29,6 +29,9 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+Enter", command: "run.play" },
   { key: "Ctrl+.", command: "run.stop" },
   { key: "F8", command: "run.revealError" },
+  // Number scrubbing from the keyboard (Alt+drag and Alt+wheel do it with the mouse).
+  { key: "Ctrl+Alt+ArrowUp", command: "editor.increaseNumber", when: "editorFocus" },
+  { key: "Ctrl+Alt+ArrowDown", command: "editor.decreaseNumber", when: "editorFocus" },
   // The Keys view: a DAW-style keyboard, only while it has focus, so everywhere else
   // these letters type. Auto-repeat never retriggers a command.
   { key: "A", command: "keys.play0", when: "keysFocus" },

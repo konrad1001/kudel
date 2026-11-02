@@ -50,8 +50,14 @@ let markedDoc: string | null = null;
 // Samples Strudel has started loading and not finished, by URL, with when they started.
 const sampleLoads = new Map<string, number>();
 
-export type EvaluatedListener = (docId: string | null, code: string) => void;
+// `quiet` is true for the re-evaluations number scrubbing makes, which nothing should
+// draw attention to.
+export type EvaluatedListener = (docId: string | null, code: string, quiet: boolean) => void;
 const evaluatedListeners = new Set<EvaluatedListener>();
+// A scrub re-evaluation is running; another is wanted once it finishes.
+let quietRun: Promise<void> | undefined;
+let quietAgain = false;
+let evaluatingQuietly = false;
 
 export type CodeListener = (docId: string, code: string) => void;
 const codeListeners = new Set<CodeListener>();
@@ -280,7 +286,7 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
       runtimeError = undefined;
       publishError();
       if (mirror?.repl.scheduler.started) setPlaying(evaluatingDoc);
-      evaluatedListeners.forEach((listener) => listener(evaluatingDoc, code));
+      evaluatedListeners.forEach((listener) => listener(evaluatingDoc, code, evaluatingQuietly));
     },
     onToggle: (started: boolean) => {
       if (started) {
@@ -407,6 +413,31 @@ export async function evaluate(): Promise<void> {
 
 export async function stop(): Promise<void> {
   await mirror?.stop();
+}
+
+// Re-evaluates the shown document after number scrubbing changed it, if it's the one
+// playing; otherwise the edit is only text. No flash: it runs the repl directly rather
+// than StrudelMirror's evaluate. One run at a time: changes made during a run are
+// evaluated together, from the latest text, once it finishes.
+export function evaluateQuietly(): void {
+  if (!mirror?.repl.scheduler.started || shownDoc === null || shownDoc !== playingDoc) return;
+  if (quietRun) {
+    quietAgain = true;
+    return;
+  }
+  const repl = mirror.repl;
+  quietRun = (async () => {
+    do {
+      quietAgain = false;
+      evaluatingDoc = shownDoc;
+      evaluatingQuietly = true;
+      try {
+        await repl.evaluate(mirror.code);
+      } finally {
+        evaluatingQuietly = false;
+      }
+    } while (quietAgain && mirror && shownDoc === playingDoc);
+  })().finally(() => (quietRun = undefined));
 }
 
 // Seconds the cut sound takes to fade, so stopping doesn't click.
