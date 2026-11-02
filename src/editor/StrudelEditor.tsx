@@ -3,6 +3,7 @@ import * as engine from "../engine";
 import { insertDroppedSample } from "../samples/insert";
 import { DEFAULT_EDITOR_SETTINGS } from "../settings/defaults";
 import { SAMPLE_DROP_EVENT, sampleDrop, type SampleDropEvent } from "./sampleDrop";
+import { trackCurrentView } from "./currentView";
 import { scrub } from "./scrub";
 import { TERMINAL_THEME, terminalTheme, terminalThemeSettings } from "./terminalTheme";
 
@@ -16,7 +17,7 @@ export function StrudelEditor({ hidden }: { hidden: boolean }) {
     engine.registerTheme(TERMINAL_THEME, terminalTheme, terminalThemeSettings);
     engine.init({
       editorSettings: DEFAULT_EDITOR_SETTINGS,
-      extensions: [sampleDrop(), scrub()],
+      extensions: [trackCurrentView(), sampleDrop(), scrub()],
     });
     return engine.attach(host);
   }, []);

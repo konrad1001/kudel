@@ -3,6 +3,7 @@ import * as engine from "./engine";
 import { registerCommands } from "./commands/commands";
 import { useKeyboard } from "./commands/useKeyboard";
 import { SCRUB_COMMANDS } from "./editor/scrub";
+import { SLIDER_COMMANDS } from "./editor/sliderToggle";
 import { StrudelEditor } from "./editor/StrudelEditor";
 import { FILE_COMMANDS } from "./files/actions";
 import { useTabs } from "./files/tabsStore";
@@ -45,6 +46,7 @@ registerCommands([
   ...REFERENCE_COMMANDS,
   ...STATUS_COMMANDS,
   ...SCRUB_COMMANDS,
+  ...SLIDER_COMMANDS,
 ]);
 
 registerViews([

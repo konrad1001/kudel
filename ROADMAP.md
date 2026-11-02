@@ -111,7 +111,7 @@ A hideable panel under the editor, and a small keyboard in it for hearing notes 
 Hands-on control while the music runs. Every control is a minimal edit to the code, so undo works and nothing is heard that isn't written.
 
 - [x] **Number scrubbing:** hold a modifier and drag any number literal in the editor (`.gain(0.8)`, `.lpf(800)`) to change it, re-evaluating as it moves. One drag is one undo step. Step size follows the number's own precision; another modifier gives fine steps. Alt+drag, Alt+wheel or Ctrl+Alt+↑/↓, Shift for fine; numbers in mini-notation too; whole numbers from 100 scale in proportion. Re-evaluation is quiet (no flash) and only when the tab is playing.
-- [ ] **Number to slider:** a command that wraps the number at the cursor in Strudel's `slider(n, min, max)`, and unwraps it again.
+- [x] **Number to slider:** a command that wraps the number at the cursor in Strudel's `slider(n, min, max)`, and unwraps it again. Ctrl+Alt+S; the range comes from the value (0–1 for amounts, up to a round number at least twice it otherwise, step 1 for small whole numbers); unwrapping keeps the slider's current value; not inside strings, where Strudel can't make a slider.
 - [ ] **Mute/solo per `$:` block:** a small strip of `$:` blocks with M/S toggles that rewrite the code (check the installed source for Strudel's own mute syntax for labels first; otherwise comment the block out). Solo is muting all the others, so it stays visible in the text.
 - [ ] **Evaluate on the next cycle:** Ctrl+Enter waits for the next cycle boundary (optionally every n cycles) before swapping in the new code, like Ableton's launch quantisation, so changes land on the beat. A visible "queued" state until it lands; a second key evaluates immediately.
 

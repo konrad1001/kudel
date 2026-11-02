@@ -32,18 +32,26 @@ let evaluatedCode = "";
 const EDITED_DELAY_MS = 250;
 let editedTimer: ReturnType<typeof setTimeout> | undefined;
 
+function markEditedSoon(): void {
+  clearTimeout(editedTimer);
+  editedTimer = setTimeout(() => set({ edited: true }), EDITED_DELAY_MS);
+}
+
 const unsubscribers = [
   engine.onEvaluated((docId, code, quiet) => {
     evaluatedCode = code;
     clearTimeout(editedTimer);
     // A scrub's re-evaluations don't flash.
     set((s) => ({ evaluatedDoc: docId, edited: false, evaluations: s.evaluations + (quiet ? 0 : 1) }));
+    // The text may have changed while the evaluation ran (loading samples, or a scrub
+    // still moving), and no later edit would tell.
+    if (docId !== null && engine.getDocCode(docId) !== code) markEditedSoon();
   }),
   engine.onCodeChange((docId, code) => {
     if (docId !== useStatus.getState().evaluatedDoc) return;
     clearTimeout(editedTimer);
     if (code === evaluatedCode) set({ edited: false });
-    else editedTimer = setTimeout(() => set({ edited: true }), EDITED_DELAY_MS);
+    else markEditedSoon();
   }),
   engine.onError((error) => set({ error })),
 ];

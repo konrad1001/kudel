@@ -1,7 +1,8 @@
 import { StateEffect, StateField, Transaction, type Extension } from "@codemirror/state";
-import { Decoration, EditorView, ViewPlugin } from "@codemirror/view";
+import { Decoration, EditorView } from "@codemirror/view";
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
+import { currentView } from "./currentView";
 import { numberAt, PX_PER_STEP, stepNumber, type NumberLiteral } from "./scrubNumber";
 
 // Number scrubbing: Alt+drag a number left or right, Alt+wheel over it, or Ctrl+Alt+↑/↓
@@ -133,22 +134,9 @@ const pointerNumber = (view: EditorView, event: MouseEvent) => {
   return pos === null ? null : numberIn(view, pos);
 };
 
-// The editor showing documents; the keyboard commands act on it. There is only one.
-let currentView: EditorView | undefined;
-
-const trackView = ViewPlugin.define((view) => {
-  currentView = view;
-  return {
-    destroy() {
-      if (currentView === view) currentView = undefined;
-    },
-  };
-});
-
 export function scrub(): Extension {
   return [
     hover,
-    trackView,
     EditorView.domEventHandlers({
       mousedown(event, view) {
         if (event.button !== 0 || !event.altKey) return false;
@@ -181,7 +169,7 @@ export function scrub(): Extension {
 }
 
 function nudgeAtCursor(steps: number): void {
-  const view = currentView;
+  const view = currentView();
   if (view) nudge(view, view.state.selection.main.head, steps, false);
 }
 

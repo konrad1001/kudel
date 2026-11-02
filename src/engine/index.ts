@@ -58,6 +58,10 @@ const evaluatedListeners = new Set<EvaluatedListener>();
 let quietRun: Promise<void> | undefined;
 let quietAgain = false;
 let evaluatingQuietly = false;
+// A normal evaluation (Ctrl+Enter) is running, which read the text when it started; a
+// quiet one asked for meanwhile runs after it, on the latest text.
+let loudRun: Promise<void> | undefined;
+let quietAfterLoud = false;
 
 export type CodeListener = (docId: string, code: string) => void;
 const codeListeners = new Set<CodeListener>();
@@ -326,7 +330,16 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
   const evaluateShown = mirror.evaluate.bind(mirror);
   mirror.evaluate = (autostart?: boolean) => {
     evaluatingDoc = shownDoc;
-    return evaluateShown(autostart);
+    const run = evaluateShown(autostart);
+    loudRun = run;
+    void run.finally(() => {
+      if (loudRun === run) loudRun = undefined;
+      if (quietAfterLoud && !loudRun) {
+        quietAfterLoud = false;
+        evaluateQuietly();
+      }
+    });
+    return run;
   };
 
   // After a hot reload, bring back the documents the previous instance had open.
@@ -420,6 +433,10 @@ export async function stop(): Promise<void> {
 // than StrudelMirror's evaluate. One run at a time: changes made during a run are
 // evaluated together, from the latest text, once it finishes.
 export function evaluateQuietly(): void {
+  if (loudRun) {
+    quietAfterLoud = true;
+    return;
+  }
   if (!mirror?.repl.scheduler.started || shownDoc === null || shownDoc !== playingDoc) return;
   if (quietRun) {
     quietAgain = true;
