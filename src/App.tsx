@@ -19,12 +19,14 @@ import { Panel } from "./panels/Panel";
 import { Reference } from "./panels/Reference";
 import { Sidebar } from "./panels/Sidebar";
 import { Sounds } from "./panels/Sounds";
+import { StatusBar } from "./panels/StatusBar";
 import { TabBar } from "./panels/TabBar";
 import { RUN_COMMANDS } from "./playback";
 import { REFERENCE_COMMANDS } from "./reference/referenceStore";
 import { PREVIEW_COMMANDS } from "./samples/preview";
 import { resolveLocalSamples } from "./samples/resolve";
 import { SOUNDS_COMMANDS } from "./sounds/soundsStore";
+import { STATUS_COMMANDS } from "./status/statusStore";
 import { persistSession, restoreSessionOnce } from "./session/persist";
 import "./App.css";
 
@@ -40,6 +42,7 @@ registerCommands([
   ...KEYS_COMMANDS,
   ...SOUNDS_COMMANDS,
   ...REFERENCE_COMMANDS,
+  ...STATUS_COMMANDS,
 ]);
 
 registerViews([
@@ -66,7 +69,7 @@ const MENUS: Menu[] = [
       ["editor.next", "editor.previous"],
     ],
   },
-  { label: "Run", groups: [["run.play", "run.stop"]] },
+  { label: "Run", groups: [["run.play", "run.stop"], ["run.revealError"]] },
 ];
 
 // The ways to get a file open, listed where the editor would be.
@@ -106,6 +109,7 @@ function App() {
         </div>
         <Aside />
       </div>
+      <StatusBar />
     </main>
   );
 }

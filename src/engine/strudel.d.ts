@@ -144,7 +144,10 @@ declare module "@strudel/codemirror" {
     prebaked: Promise<unknown>;
     // The repl from @strudel/core/repl.mjs; setCode only updates its dirty tracking.
     repl: {
-      scheduler: { started: boolean };
+      // core/cyclist.mjs. now() is the current cycle, counted from the start.
+      scheduler: { started: boolean; cps: number; now(): number };
+      // pending is true while an evaluation runs.
+      state: { pending: boolean };
       setCode?(code: string): void;
     };
     // Also what StrudelMirror's keymap (Alt+Enter) and vim's :w call, via `this`.

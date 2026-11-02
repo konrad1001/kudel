@@ -6,9 +6,11 @@ import * as webaudio from "@strudel/webaudio";
 import * as codemirror from "@strudel/codemirror";
 import { StrudelMirror } from "@strudel/codemirror";
 import * as soundfonts from "@strudel/soundfonts";
-import { EditorState, StateEffect, Transaction, type Extension } from "@codemirror/state";
+import { EditorState, StateEffect, Transaction, type Extension, type TransactionSpec } from "@codemirror/state";
 import { language } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
+import { errorLine, setErrorLine } from "./errorLine";
+import { errorPosition, loadsInProgress } from "./errors";
 import { DRUM_MACHINE_ALIASES, SAMPLE_SOURCES } from "./soundSources";
 import { soundInfo, type SoundInfo } from "./sounds";
 import "./piano";
@@ -19,13 +21,37 @@ let mirror: StrudelMirror | undefined;
 let container: HTMLDivElement | undefined;
 let audioReady: Promise<void> | undefined;
 
-export type ErrorListener = (message: string | undefined) => void;
+// An error to show. A syntax error also says where it is, in the document it came from.
+export interface EngineError {
+  message: string;
+  at?: ErrorLocation;
+}
+
+export interface ErrorLocation {
+  docId: string;
+  // 1-based.
+  line: number;
+  // 0-based.
+  column: number;
+}
+
+export type ErrorListener = (error: EngineError | undefined) => void;
 const errorListeners = new Set<ErrorListener>();
 // Evaluation errors come from repl state; errors while playing (a pattern that
 // throws, an unknown sound) only reach Strudel's logger, so they are tracked apart.
-let evalError: string | undefined;
-let runtimeError: string | undefined;
-let shownError: string | undefined;
+let evalError: EngineError | undefined;
+// The repl's Error object evalError was made from; repl state repeats it on every update.
+let evalErrorSource: unknown;
+let runtimeError: EngineError | undefined;
+let shownError: EngineError | undefined;
+// The document whose line is marked as the error's.
+let markedDoc: string | null = null;
+
+// Samples Strudel has started loading and not finished, by URL, with when they started.
+const sampleLoads = new Map<string, number>();
+
+export type EvaluatedListener = (docId: string | null, code: string) => void;
+const evaluatedListeners = new Set<EvaluatedListener>();
 
 export type CodeListener = (docId: string, code: string) => void;
 const codeListeners = new Set<CodeListener>();
@@ -69,10 +95,47 @@ function publishError(): void {
 }
 
 function onLog(event: Event): void {
-  const { message } = (event as CustomEvent<{ message: string }>).detail;
-  if (!/^\[[\w-]+\] error: /.test(message)) return;
-  runtimeError = message;
+  const { message, type, data } = (event as CustomEvent<LogDetail>).detail;
+  if (data?.url && type === "load-sample") sampleLoads.set(data.url, performance.now());
+  if (data?.url && type === "loaded-sample") sampleLoads.delete(data.url);
+  if (!/^\[[\w-]+\] error: /.test(message) || runtimeError?.message === message) return;
+  runtimeError = { message };
   publishError();
+}
+
+// What Strudel's logger sends; superdough's sampler adds the URL to its load messages.
+interface LogDetail {
+  message: string;
+  type?: string;
+  data?: { url?: string };
+}
+
+// An evaluation error, placed in the document being evaluated when it has a position.
+function evalErrorFrom(err: Error): EngineError {
+  const position = errorPosition(err);
+  return {
+    message: err.message,
+    at: position && evaluatingDoc !== null ? { docId: evaluatingDoc, ...position } : undefined,
+  };
+}
+
+// Applies a transaction to a document, shown or not. Only for effects and selections:
+// edits to a stored document also need publishCode, as dispatchChanges does.
+function updateDoc(docId: string, spec: TransactionSpec): void {
+  const view = mirror?.editor;
+  if (view && docId === shownDoc) {
+    view.dispatch(spec);
+    return;
+  }
+  const stored = docs.get(docId);
+  if (stored) docs.set(docId, { ...stored, state: stored.state.update(spec).state });
+}
+
+// Moves the error mark to `at`'s line, or clears it.
+function markErrorLine(at: ErrorLocation | undefined): void {
+  if (markedDoc !== null) updateDoc(markedDoc, { effects: setErrorLine.of(null) });
+  markedDoc = at?.docId ?? null;
+  if (at) updateDoc(at.docId, { effects: setErrorLine.of(at.line) });
 }
 
 // Turns the path in samples("./drums") into a sample map: sound name to the URLs of
@@ -206,14 +269,18 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
     defaultOutput: webaudio.webaudioOutput,
     getTime: () => webaudio.getAudioContext().currentTime,
     onUpdateState: (state: { evalError?: Error }) => {
-      evalError = state.evalError?.message;
+      if (state.evalError === evalErrorSource) return;
+      evalErrorSource = state.evalError;
+      evalError = state.evalError && evalErrorFrom(state.evalError);
+      markErrorLine(evalError?.at);
       publishError();
     },
     // Only called after a successful evaluation.
-    afterEval: () => {
+    afterEval: ({ code }: { code: string }) => {
       runtimeError = undefined;
       publishError();
       if (mirror?.repl.scheduler.started) setPlaying(evaluatingDoc);
+      evaluatedListeners.forEach((listener) => listener(evaluatingDoc, code));
     },
     onToggle: (started: boolean) => {
       if (started) {
@@ -241,6 +308,7 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
       EditorView.updateListener.of((update) => {
         if (update.docChanged && shownDoc !== null) publishCode(shownDoc, update.state.doc.toString());
       }),
+      errorLine,
       ...extensions,
     ]),
   });
@@ -284,6 +352,44 @@ export function onError(listener: ErrorListener): () => void {
   listener(shownError);
   return () => {
     errorListeners.delete(listener);
+  };
+}
+
+// Calls `listener` after every successful evaluation, with the document evaluated and
+// the code that is now playing. Returns an unsubscribe function.
+export function onEvaluated(listener: EvaluatedListener): () => void {
+  evaluatedListeners.add(listener);
+  return () => {
+    evaluatedListeners.delete(listener);
+  };
+}
+
+// The state of playback, for a status display to read as often as it likes.
+export interface Transport {
+  // The scheduler is running.
+  started: boolean;
+  // An evaluation is under way (loading samples, say).
+  evaluating: boolean;
+  // Cycles per second.
+  cps: number;
+  // The current cycle, fractional; 0 when stopped.
+  cycle: number;
+  // The AudioContext's state, or null before the engine starts.
+  audio: AudioContextState | null;
+  // Samples being fetched and decoded.
+  loading: number;
+}
+
+export function getTransport(): Transport {
+  const repl = mirror?.repl;
+  const started = !!repl?.scheduler.started;
+  return {
+    started,
+    evaluating: !!repl?.state.pending,
+    cps: repl?.scheduler.cps ?? 0.5,
+    cycle: repl && started ? Math.max(0, repl.scheduler.now()) : 0,
+    audio: mirror ? webaudio.getAudioContext().state : null,
+    loading: loadsInProgress(sampleLoads, performance.now()),
   };
 }
 
@@ -517,6 +623,17 @@ export function onPlayingChange(listener: PlayingListener): () => void {
 
 export function focusEditor(): void {
   mirror?.editor.focus();
+}
+
+// Puts the cursor at `line` (1-based) and `column` (0-based) in the shown document,
+// scrolled into view, and focuses the editor.
+export function revealPosition(line: number, column: number): void {
+  const view = mirror?.editor;
+  if (!view || shownDoc === null) return;
+  const { doc } = view.state;
+  const target = doc.line(Math.min(Math.max(line, 1), doc.lines));
+  view.dispatch({ selection: { anchor: Math.min(target.from + column, target.to) }, scrollIntoView: true });
+  view.focus();
 }
 
 // The word at the cursor in the shown document (a function or control name, say), or

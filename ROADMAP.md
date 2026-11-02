@@ -51,11 +51,11 @@ Everything personalisable comes from one file, applied live.
 
 Make the state of the music visible at a glance.
 
-- [ ] **Status bar** under the editor: playing / stopped, cps and bpm, current cycle, sample-loading progress, audio context state.
-- [ ] **"Edited but not evaluated" indicator.** The repl already tracks this (`isDirty` in its state, `code !== activeCode`); expose it through the engine and show it in the status bar.
-- [ ] **Errors at the right place:** parse the position Strudel reports (e.g. `Unexpected token (6:6)`), mark that line in the editor, and let a click on the error bar jump to it.
-- [ ] Keep showing which code is actually playing while the error is displayed (the last good evaluation keeps running).
-- [ ] Flash or mark the status bar on each successful evaluation.
+- [x] **Status bar** along the whole bottom of the window: playing / stopped / evaluating, cps and bpm, current cycle, sample-loading progress, audio context state.
+- [x] **"Edited but not evaluated" indicator.** Tracked per document (the repl's own `isDirty` only knows the shown one): the engine reports each successful evaluation, and the status bar shows `● not evaluated` once the playing tab differs from it.
+- [x] **Errors at the right place:** parse the position Strudel reports (e.g. `Unexpected token (6:6)`), mark that line in the editor, and let a click on the error bar jump to it. Also from the status bar and F8. Only syntax errors carry a position.
+- [x] Keep showing which code is actually playing while the error is displayed (the last good evaluation keeps running).
+- [x] Flash or mark the status bar on each successful evaluation.
 
 **Done when:** the status bar always shows whether sound is running, at what tempo and cycle; editing after an evaluation visibly marks the code as not yet evaluated; a syntax error highlights its line and clicking the error moves the cursor there.
 

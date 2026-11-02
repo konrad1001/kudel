@@ -12,6 +12,7 @@
    == Empty editor       shown when no file is open
    == Editor             CodeMirror host
    == Error bar
+   == Status bar         the strip along the bottom of the window
    == Panel              the region under the editor
    == Keys               the panel's keyboard
    == Aside              the region right of the editor
@@ -945,6 +946,99 @@ body {
 
 .error-bar::before {
   content: "✗ ";
+}
+
+/* A syntax error, which knows its line: click to go there. */
+.error-bar.located {
+  cursor: pointer;
+}
+
+.error-bar.located:hover {
+  text-decoration: underline;
+}
+
+/* The line a syntax error points at, in the editor. Outranks the active line. */
+.strudel-root .cm-editor .cm-errorLine {
+  background-color: #f14c4c1f;
+  box-shadow: inset 2px 0 #f14c4c;
+}
+
+/* ================================================================ */
+/* == Status bar                                                    */
+/* ================================================================ */
+
+.status-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
+  user-select: none;
+}
+
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.status-item {
+  padding: 0 6px;
+  line-height: 20px;
+  border-radius: 3px;
+}
+
+.status-button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+.status-button:hover {
+  background-color: var(--selection, #ffffff26);
+}
+
+.status-play {
+  opacity: 0.7;
+}
+
+.status-play.playing {
+  color: var(--playing);
+  opacity: 1;
+}
+
+.status-edited {
+  color: #e5c07b;
+}
+
+.status-error {
+  color: #f14c4c;
+}
+
+.status-dim {
+  opacity: 0.5;
+}
+
+/* Each successful evaluation. */
+.status-flash {
+  animation: status-flash 0.5s ease-out;
+}
+
+@keyframes status-flash {
+  from {
+    background-color: color-mix(in srgb, var(--playing) 35%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
 }
 
 /* ================================================================ */

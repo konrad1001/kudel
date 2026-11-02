@@ -64,6 +64,10 @@ src/
   reference/   the Reference view's logic (search, lookup by name, description markup;
                pure, tested) and its store. It reads docs/strudel-api.json, loaded on
                first use. Examples open as new tabs; the reference never plays anything
+  status/      the status bar's store (what was last evaluated and whether it's been
+               edited since, evaluation count, the current error) and its formatting.
+               Playback state, tempo, cycle, audio and sample loading are polled from
+               engine.getTransport; loads are counted from Strudel's logger events
   keys/        the Keys view's logic: letter → note names, the note buffer, the
                keyboard drawing (pure, tested) and its store and commands. Playing a key
                is an audition through engine.auditionNote, never part of the pattern

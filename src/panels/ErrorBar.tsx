@@ -1,15 +1,22 @@
-import { useEffect, useState } from "react";
-import * as engine from "../engine";
+import { useKeyFor, withKey } from "../commands/keybindings";
+import { revealError, useStatus } from "../status/statusStore";
 
+// The current error, in full. When it points at a place in the code (a syntax error),
+// clicking it goes there.
 export function ErrorBar() {
-  const [error, setError] = useState<string>();
-
-  useEffect(() => engine.onError(setError), []);
+  const error = useStatus((s) => s.error);
+  const revealKey = useKeyFor("run.revealError");
 
   if (!error) return null;
+  const at = error.at;
   return (
-    <div className="error-bar" role="alert">
-      {error}
+    <div
+      className={at ? "error-bar located" : "error-bar"}
+      role="alert"
+      title={at ? withKey(`Go to line ${at.line}`, revealKey) : undefined}
+      onClick={at ? revealError : undefined}
+    >
+      {error.message}
     </div>
   );
 }
