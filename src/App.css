@@ -292,6 +292,13 @@ body {
   border-top: 1px solid var(--gutterForeground, #3c3c3c);
 }
 
+/* The right-click menu: the same list, placed at the pointer. */
+.menu-items.context-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 180px;
+}
+
 /* ================================================================ */
 /* == Explorer                                                      */
 /* ================================================================ */
@@ -355,6 +362,10 @@ body {
   padding-bottom: 8px;
 }
 
+.explorer-tree:focus {
+  outline: none;
+}
+
 .explorer-row {
   display: flex;
   align-items: center;
@@ -374,6 +385,12 @@ body {
 
 .explorer-row.dim {
   opacity: 0.45;
+}
+
+/* What F2 and Delete act on: outlined while the explorer has focus. */
+.explorer-tree:focus-within .explorer-row.selected {
+  outline: 1px solid var(--gutterForeground, #3c3c3c);
+  outline-offset: -1px;
 }
 
 /* The audio file open in the Sample view: a bar down its left edge. */

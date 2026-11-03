@@ -4,7 +4,7 @@ import type { Command } from "../commands/commands";
 import { isTextField, registerContextKey } from "../commands/when";
 import { refresh } from "../files/explorerStore";
 import { assetUrl, scanSampleFolder, writeWav } from "../files/native";
-import { baseName, dirName, samePath, stem } from "../files/paths";
+import { baseName, dirName, isWithin, movedPath, samePath, stem } from "../files/paths";
 import { soundName, soundsInFolder } from "../samples/sampleMap";
 import { clipCode, clipFileName } from "./clipCode";
 import { encodeWav, trimWav } from "./wavFile";
@@ -180,6 +180,46 @@ async function lookUpSoundName(path: string, token: number): Promise<void> {
 }
 
 const pick = ({ view, selection, cursor }: WaveformState): Remembered => ({ view, selection, cursor });
+
+// After a rename in the explorer: the open file (and what's remembered about others)
+// follows it. The decoded audio is unchanged; its sound name may not be.
+export function followSampleMove(from: string, to: string): void {
+  for (const [path, state] of [...remembered]) {
+    const moved = movedPath(path, from, to);
+    if (moved === path) continue;
+    remembered.delete(path);
+    remembered.set(moved, state);
+  }
+  const { path } = get();
+  if (!path || !isWithin(path, from)) return;
+  const moved = movedPath(path, from, to);
+  set({ path: moved });
+  void lookUpSoundName(moved, loadToken);
+}
+
+// After a delete: if the open file was in it, the view empties.
+export function closeSampleWithin(dir: string): void {
+  for (const path of [...remembered.keys()]) if (isWithin(path, dir)) remembered.delete(path);
+  if (!isWithin(get().path, dir)) return;
+  stopPlayback();
+  loadToken++;
+  buffer = null;
+  channels = [];
+  blocks = null;
+  set({
+    path: null,
+    status: "empty",
+    error: null,
+    info: null,
+    selection: null,
+    playing: null,
+    soundName: null,
+    copied: false,
+    copyError: null,
+    written: null,
+    writeError: null,
+  });
+}
 
 function least(): number {
   return minSpan(get().info?.sampleRate ?? 48000);

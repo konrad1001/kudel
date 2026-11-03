@@ -1,19 +1,24 @@
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
 import * as explorer from "./explorerStore";
+import { stopPreview, usePreview } from "../samples/preview";
+import { closeSampleWithin, followSampleMove } from "../waveform/waveformStore";
 import {
   askToSave,
+  askToTrash,
   createFile as createFileOnDisk,
   listDir,
   pickFileToOpen,
   pickFolder,
   pickSavePath,
   readTextFile,
+  renamePath as renameOnDisk,
   showError,
+  trashPath,
   writeTextFile,
 } from "./native";
-import { samePath, withDefaultExtension } from "./paths";
-import { addRecentFile, addRecentFolder, forgetRecent } from "./recentStore";
+import { baseName, isWithin, movedPath, samePath, withDefaultExtension } from "./paths";
+import { addRecentFile, addRecentFolder, forgetRecent, forgetRecentWithin, moveRecent } from "./recentStore";
 import { activeAfterClose, cycleTab, insertIndex, nextUntitled, tabTitle, type Tab } from "./tabs";
 import { selectActiveTab, updateTab, useTabs } from "./tabsStore";
 import { decodeFile, encodeFile, type LineEnding } from "./text";
@@ -21,8 +26,9 @@ import { decodeFile, encodeFile, type LineEnding } from "./text";
 let busy = false;
 
 // One file operation at a time (a held Ctrl+S must not stack dialogs); errors go to
-// a message box, and the editor gets focus back afterwards.
-function fileAction<A extends unknown[]>(run: (...args: A) => Promise<unknown>) {
+// a message box, and the editor gets focus back afterwards (unless `refocus` is
+// false: the explorer's rename and delete leave focus in the explorer).
+function fileAction<A extends unknown[]>(run: (...args: A) => Promise<unknown>, { refocus = true } = {}) {
   return async (...args: A): Promise<void> => {
     if (busy) return;
     busy = true;
@@ -32,7 +38,7 @@ function fileAction<A extends unknown[]>(run: (...args: A) => Promise<unknown>) 
       await showError(String(err));
     } finally {
       busy = false;
-      engine.focusEditor();
+      if (refocus) engine.focusEditor();
     }
   };
 }
@@ -117,6 +123,12 @@ async function close(id: string): Promise<boolean> {
     if (choice === "cancel") return false;
     if (choice === "save" && !(await save(tab))) return false;
   }
+  removeTab(id);
+  return true;
+}
+
+// Closes a tab without asking (its file is gone, and the user already said so).
+function removeTab(id: string): void {
   const { tabs, activeId } = useTabs.getState();
   const nextActive = activeAfterClose(
     tabs.map((t) => t.id),
@@ -126,7 +138,6 @@ async function close(id: string): Promise<boolean> {
   engine.closeDoc(id);
   useTabs.setState({ tabs: tabs.filter((t) => t.id !== id) });
   if (nextActive !== activeId || activeId === id) activate(nextActive);
-  return true;
 }
 
 function withActiveTab(run: (tab: Tab) => Promise<unknown>) {
@@ -202,6 +213,53 @@ export const createFileIn = fileAction(async (dir: string, name: string) => {
   await load(path);
 });
 
+// Renames a file or folder in place. Open tabs, recents, the explorer and the Sample
+// view follow the new path, including everything inside a renamed folder. Code that
+// refers to it (samples('./old')) is not rewritten.
+export const renameEntry = fileAction(
+  async (path: string, name: string) => {
+    const to = await renameOnDisk(path, name);
+    useTabs.setState((s) => ({
+      tabs: s.tabs.map((tab) =>
+        tab.filePath && isWithin(tab.filePath, path) ? { ...tab, filePath: movedPath(tab.filePath, path, to) } : tab,
+      ),
+    }));
+    moveRecent(path, to);
+    explorer.followMove(path, to);
+    followSampleMove(path, to);
+    if (isWithin(usePreview.getState().path, path)) stopPreview();
+    await explorer.refresh();
+  },
+  { refocus: false },
+);
+
+// Moves a file or folder to the Recycle Bin, after asking. Its open tabs close (the
+// question says if any have unsaved changes), and nothing else keeps pointing at it.
+export const deleteEntry = fileAction(
+  async (path: string, isDir: boolean) => {
+    const inside = useTabs.getState().tabs.filter((tab) => isWithin(tab.filePath, path));
+    if (!(await askToTrash(baseName(path), isDir, inside.some((tab) => tab.dirty)))) return;
+    await trashPath(path);
+    inside.forEach((tab) => removeTab(tab.id));
+    forgetRecentWithin(path);
+    explorer.forgetWithin(path);
+    closeSampleWithin(path);
+    if (isWithin(usePreview.getState().path, path)) stopPreview();
+    await explorer.refresh();
+  },
+  { refocus: false },
+);
+
+// For F2 and Delete in the explorer, and its right-click menu: the selected entry.
+function selectedEntry(): { path: string; isDir: boolean } | null {
+  const { selected, children } = explorer.useExplorer.getState();
+  if (!selected) return null;
+  const entry = Object.values(children)
+    .flat()
+    .find((e) => samePath(e.path, selected));
+  return entry ? { path: entry.path, isDir: entry.isDir } : null;
+}
+
 export const saveFile = withActiveTab((tab) => save(tab));
 
 export const saveFileAs = withActiveTab(async (tab) => {
@@ -222,4 +280,20 @@ export const FILE_COMMANDS: Command[] = [
   { id: "file.closeFolder", label: "Close Folder", run: explorer.closeFolder },
   { id: "editor.next", label: "Next Editor", run: () => cycle(1) },
   { id: "editor.previous", label: "Previous Editor", run: () => cycle(-1) },
+  {
+    id: "explorer.rename",
+    label: "Rename",
+    run: () => {
+      const entry = selectedEntry();
+      if (entry) explorer.startRename(entry.path);
+    },
+  },
+  {
+    id: "explorer.delete",
+    label: "Delete",
+    run: () => {
+      const entry = selectedEntry();
+      if (entry) void deleteEntry(entry.path, entry.isDir);
+    },
+  },
 ];

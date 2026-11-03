@@ -4,12 +4,57 @@ import {
   dirName,
   isAudioFile,
   isCodeFile,
+  isWithin,
+  movedPath,
   relativePath,
+  renameSelection,
   samePath,
   stem,
   windowTitle,
   withDefaultExtension,
 } from "./paths";
+
+describe("isWithin", () => {
+  it("is true for the folder itself and anything inside it, in any case", () => {
+    expect(isWithin("C:\\set\\drums", "C:\\set\\drums")).toBe(true);
+    expect(isWithin("C:\\Set\\drums\\kick.wav", "c:\\set\\drums\\")).toBe(true);
+    expect(isWithin("C:/set/drums/a/b.wav", "C:\\set\\drums")).toBe(true);
+  });
+
+  it("is false for a sibling that only starts with the same letters", () => {
+    expect(isWithin("C:\\set\\drums2\\kick.wav", "C:\\set\\drums")).toBe(false);
+    expect(isWithin(null, "C:\\set")).toBe(false);
+  });
+});
+
+describe("movedPath", () => {
+  it("moves the renamed path itself", () => {
+    expect(movedPath("C:\\set\\a.strudel", "c:\\set\\A.strudel", "C:\\set\\b.strudel")).toBe("C:\\set\\b.strudel");
+  });
+
+  it("moves what was inside a renamed folder, keeping the rest", () => {
+    expect(movedPath("C:\\set\\drums\\Kick.wav", "C:\\set\\drums", "C:\\set\\perc")).toBe("C:\\set\\perc\\Kick.wav");
+  });
+
+  it("leaves everything else alone", () => {
+    expect(movedPath("C:\\set\\drums2\\kick.wav", "C:\\set\\drums", "C:\\set\\perc")).toBe(
+      "C:\\set\\drums2\\kick.wav",
+    );
+  });
+});
+
+describe("renameSelection", () => {
+  it("selects a file's name up to its extension", () => {
+    expect(renameSelection("acid.strudel", false)).toEqual([0, 4]);
+    expect(renameSelection("808.bd.wav", false)).toEqual([0, 6]);
+  });
+
+  it("selects all of a folder, or a name without an extension", () => {
+    expect(renameSelection("drums.old", true)).toEqual([0, 9]);
+    expect(renameSelection("README", false)).toEqual([0, 6]);
+    expect(renameSelection(".env", false)).toEqual([0, 4]);
+  });
+});
 
 describe("dirName", () => {
   it("drops the last part", () => {

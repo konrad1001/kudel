@@ -1,7 +1,8 @@
 import { create } from "zustand";
+import { isTextField, registerContextKey } from "../commands/when";
 import { showView } from "../layout/layoutStore";
 import { allowAssetFolder, listDir, type DirEntry } from "./native";
-import { dirName, samePath } from "./paths";
+import { dirName, isWithin, movedPath, samePath } from "./paths";
 
 // The explorer sidebar: the open folder and how it is expanded. UI-only state.
 interface ExplorerState {
@@ -14,6 +15,10 @@ interface ExplorerState {
   targetDir: string | null;
   // The folder showing the new-file name box, if any.
   creatingIn: string | null;
+  // The last clicked entry: what F2 renames and Delete deletes.
+  selected: string | null;
+  // The entry showing the rename box, if any.
+  renaming: string | null;
   rootMissing: boolean;
 }
 
@@ -23,11 +28,19 @@ export const useExplorer = create<ExplorerState>(() => ({
   expanded: {},
   targetDir: null,
   creatingIn: null,
+  selected: null,
+  renaming: null,
   rootMissing: false,
 }));
 
 const set = useExplorer.setState;
 const get = useExplorer.getState;
+
+// Focus is in the explorer's tree, but not in a name box: F2 and Delete act on the selection.
+registerContextKey("explorerFocus", () => {
+  const el = document.activeElement;
+  return !!el?.closest(".explorer") && !isTextField(el);
+});
 
 export async function setRoot(root: string): Promise<void> {
   set({
@@ -67,6 +80,8 @@ export function closeFolder(): void {
     expanded: {},
     targetDir: null,
     creatingIn: null,
+    selected: null,
+    renaming: null,
     rootMissing: false,
   });
 }
@@ -93,7 +108,7 @@ export async function refresh(): Promise<void> {
 
 export async function toggleDir(dir: string): Promise<void> {
   const { expanded } = get();
-  set({ targetDir: dir });
+  set({ targetDir: dir, selected: dir });
   if (expanded[dir]) {
     const { [dir]: _collapsed, ...rest } = expanded;
     set({ expanded: rest });
@@ -129,8 +144,40 @@ export async function revealPath(path: string): Promise<void> {
   showView("explorer");
 }
 
-export function selectFile(parentDir: string): void {
-  set({ targetDir: parentDir });
+export function selectFile(parentDir: string, path?: string): void {
+  set({ targetDir: parentDir, ...(path && { selected: path }) });
+}
+
+export function startRename(path: string): void {
+  set({ renaming: path, selected: path, creatingIn: null });
+}
+
+export function cancelRename(): void {
+  set({ renaming: null });
+}
+
+// After a rename on disk: expanded folders, the selection and New File's target follow
+// it. Call refresh() afterwards to list the new names.
+export function followMove(from: string, to: string): void {
+  const { expanded, targetDir, selected, children } = get();
+  const move = (path: string) => movedPath(path, from, to);
+  set({
+    expanded: Object.fromEntries(Object.keys(expanded).map((dir) => [move(dir), true as const])),
+    children: Object.fromEntries(Object.entries(children).map(([dir, entries]) => [move(dir), entries])),
+    targetDir: targetDir && move(targetDir),
+    selected: selected && move(selected),
+    renaming: null,
+  });
+}
+
+// After a delete: nothing points at it or inside it any more.
+export function forgetWithin(path: string): void {
+  const { targetDir, selected } = get();
+  set({
+    targetDir: isWithin(targetDir, path) ? dirName(path) : targetDir,
+    selected: isWithin(selected, path) ? null : selected,
+    renaming: null,
+  });
 }
 
 export function collapseAll(): void {

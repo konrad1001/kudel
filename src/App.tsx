@@ -13,6 +13,7 @@ import { KEYS_COMMANDS } from "./keys/keysStore";
 import { LAYOUT_COMMANDS, useLayout } from "./layout/layoutStore";
 import { registerViews } from "./layout/views";
 import { Aside } from "./panels/Aside";
+import { CONTEXT_MENU_COMMANDS, ContextMenu } from "./panels/ContextMenu";
 import { EmptyEditor } from "./panels/EmptyEditor";
 import { ErrorBar } from "./panels/ErrorBar";
 import { Explorer } from "./panels/Explorer";
@@ -45,6 +46,7 @@ registerCommands([
   ...RUN_COMMANDS,
   ...PREVIEW_COMMANDS,
   ...MENU_COMMANDS,
+  ...CONTEXT_MENU_COMMANDS,
   ...LAYOUT_COMMANDS,
   ...KEYS_COMMANDS,
   ...IMPORT_COMMANDS,
@@ -124,6 +126,7 @@ function App() {
         <Aside />
       </div>
       <StatusBar />
+      <ContextMenu />
     </main>
   );
 }

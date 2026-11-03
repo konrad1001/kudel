@@ -46,6 +46,31 @@ export function createFile(dir: string, name: string): Promise<string> {
   return invoke("create_file", { dir, name });
 }
 
+// Renames within the same folder; resolves to the new path. Fails if the name is not a
+// plain file name or is taken (a change of case only is fine).
+export function renamePath(path: string, name: string): Promise<string> {
+  return invoke("rename_path", { path, name });
+}
+
+// Moves a file or folder to the Recycle Bin.
+export function trashPath(path: string): Promise<void> {
+  return invoke("trash_path", { path });
+}
+
+const TRASH = "Move to Recycle Bin";
+
+// True to go ahead. `unsaved`: an open tab inside it has changes that would be lost.
+export async function askToTrash(name: string, isDir: boolean, unsaved: boolean): Promise<boolean> {
+  const what = isDir ? `the folder ${name} and everything in it` : name;
+  const warning = unsaved ? "\n\nAn open tab in it has unsaved changes, which will be lost." : "";
+  const choice = await message(`Move ${what} to the Recycle Bin?${warning}`, {
+    title: TITLE,
+    kind: "warning",
+    buttons: { ok: TRASH, cancel: "Cancel" },
+  });
+  return choice === TRASH || choice === "Ok";
+}
+
 // Resolves `relative` against `base`, lists its audio, and lets the asset protocol
 // serve that folder. Rejects with a message naming the folder.
 export function scanSampleFolder(base: string, relative: string): Promise<SampleFolder> {

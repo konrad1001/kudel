@@ -11,6 +11,8 @@ pub fn run() {
             commands::files::write_text_file,
             commands::files::list_dir,
             commands::files::create_file,
+            commands::files::rename_path,
+            commands::files::trash_path,
             commands::samples::scan_sample_folder,
             commands::samples::allow_asset_folder,
             commands::samples::write_wav,

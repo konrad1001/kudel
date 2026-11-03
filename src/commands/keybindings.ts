@@ -23,6 +23,9 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+Shift+M", command: "view.toggleMaximised" },
   { key: "F1", command: "reference.lookUp" },
   { key: "Ctrl+Alt+I", command: "view.import" },
+  // The explorer's selected file or folder, while the explorer has focus.
+  { key: "F2", command: "explorer.rename", when: "explorerFocus" },
+  { key: "Delete", command: "explorer.delete", when: "explorerFocus" },
   { key: "Ctrl+Tab", command: "editor.next" },
   { key: "Ctrl+Shift+Tab", command: "editor.previous" },
   // Also in StrudelMirror's own editor keymap (with Alt+Enter and Alt+.); these
@@ -67,6 +70,7 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   // Not while typing: vim and text fields need their Escape.
   { key: "Escape", command: "samples.stopPreview", when: "previewing && !editorFocus && !inputFocus" },
   { key: "Escape", command: "menu.close", when: "menuOpen" },
+  { key: "Escape", command: "contextMenu.close", when: "contextMenuOpen" },
 ];
 
 export const useKeybindings = create<{ bindings: KeyBinding[] }>(() => ({

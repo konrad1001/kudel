@@ -41,10 +41,34 @@ export function stem(path: string): string {
 }
 
 // Windows paths: case-insensitive, either separator, no trailing separator.
+const normal = (p: string) => p.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
+
 export function samePath(a: string | null, b: string | null): boolean {
   if (!a || !b) return false;
-  const normal = (p: string) => p.replace(/\//g, "\\").replace(/\\+$/, "").toLowerCase();
   return normal(a) === normal(b);
+}
+
+// Whether `path` is `dir` itself or anything inside it.
+export function isWithin(path: string | null, dir: string): boolean {
+  if (!path) return false;
+  const p = normal(path);
+  const d = normal(dir);
+  return p === d || p.startsWith(`${d}\\`);
+}
+
+// Where `path` is after `from` (a file or folder) was renamed to `to`: `to` itself, the
+// same place inside `to`, or unchanged when it wasn't in `from`.
+export function movedPath(path: string, from: string, to: string): string {
+  if (!isWithin(path, from)) return path;
+  const rest = path.replace(/\//g, "\\").slice(normal(from).length);
+  return to.replace(/[\\/]+$/, "") + rest;
+}
+
+// The part of a name a rename box selects at first: the name without its extension
+// (as in VS Code), or all of it for a folder or a name without one.
+export function renameSelection(name: string, isDir: boolean): [number, number] {
+  const dot = name.lastIndexOf(".");
+  return isDir || dot <= 0 ? [0, name.length] : [0, dot];
 }
 
 // Files the editor opens; the explorer shows everything else dimmed.

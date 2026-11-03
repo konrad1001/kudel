@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { createFileIn, openFile, openFolder, openPath } from "../files/actions";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { createFileIn, openFile, openFolder, openPath, renameEntry } from "../files/actions";
 import { selectActiveTab, useTabs } from "../files/tabsStore";
 import {
   cancelNewFile,
+  cancelRename,
   collapseAll,
   refresh,
   selectFile,
@@ -11,7 +12,8 @@ import {
   useExplorer,
 } from "../files/explorerStore";
 import type { DirEntry } from "../files/native";
-import { baseName, isAudioFile, isCodeFile, samePath } from "../files/paths";
+import { baseName, isAudioFile, isCodeFile, renameSelection, samePath } from "../files/paths";
+import { openContextMenu } from "./ContextMenu";
 import { SAMPLE_DRAG_TYPE, type DraggedSample } from "../editor/sampleDrop";
 import { usePreview } from "../samples/preview";
 import { openSample, useWaveform } from "../waveform/waveformStore";
@@ -62,7 +64,8 @@ function FolderView({ root }: { root: string }) {
           icon={COLLAPSE}
         />
       </div>
-      <div className="explorer-tree" role="tree">
+      {/* Focusable, so F2 and Delete reach the selected entry ("explorerFocus"). */}
+      <div className="explorer-tree" role="tree" tabIndex={0}>
         {missing ? (
           <p className="explorer-empty">Folder not found.</p>
         ) : (
@@ -114,16 +117,27 @@ function EntryRow({
   const previewing = usePreview((s) => samePath(s.path, entry.path)) || sampling;
   const openable = entry.isDir || isCodeFile(entry.name) || audio;
   const isStrudel = entry.name.endsWith(".strudel");
+  const selected = useExplorer((s) => samePath(s.selected, entry.path));
+  const renaming = useExplorer((s) => samePath(s.renaming, entry.path));
 
   // An audio file opens in the Sample view, focused, ready for Space to play it.
   const onClick = () => {
+    if (renaming) return;
     if (entry.isDir) {
       void toggleDir(entry.path);
       return;
     }
-    selectFile(parent);
+    selectFile(parent, entry.path);
     if (audio) openSample(entry.path, { focus: true });
     else if (openable) void openPath(entry.path);
+  };
+
+  // Selects the entry without opening it, then offers what F2 and Delete do.
+  const onContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
+    if (entry.isDir) useExplorer.setState({ selected: entry.path, targetDir: entry.path });
+    else selectFile(parent, entry.path);
+    openContextMenu(event.clientX, event.clientY, ["explorer.rename", "explorer.delete"]);
   };
 
   const entryName = !isStrudel ? entry.name : entry.name.slice(0, -8);
@@ -134,6 +148,7 @@ function EntryRow({
     !openable && "dim",
     previewing && "previewing",
     sampled && "sampled",
+    selected && "selected",
   ]
     .filter(Boolean)
     .join(" ");
@@ -147,8 +162,9 @@ function EntryRow({
         style={{ paddingLeft: indent(depth) }}
         title={entry.path}
         onClick={onClick}
+        onContextMenu={onContextMenu}
         // Audio files and folders drag into the editor as samples('./…') plus a sound name.
-        draggable={entry.isDir || audio}
+        draggable={!renaming && (entry.isDir || audio)}
         onDragStart={(event) => {
           const sample: DraggedSample = {
             path: entry.path,
@@ -167,10 +183,14 @@ function EntryRow({
           {audio && WAVE}
           {isStrudel && SPIRAL}
         </span>
-        <span className="explorer-name">
-          {entryName}
-          <span className="explorer-file-extension">.strudel</span>
-        </span>
+        {renaming ? (
+          <RenameInput entry={entry} />
+        ) : (
+          <span className="explorer-name">
+            {entryName}
+            <span className="explorer-file-extension">.strudel</span>
+          </span>
+        )}
 
         {playing && (
           <span className="playing-mark" title="Playing">
@@ -207,6 +227,44 @@ function NewFileInput({ dir, depth }: { dir: string; depth: number }) {
         }}
       />
     </div>
+  );
+}
+
+// The entry's full name, its name before the extension selected (as in VS Code).
+// Enter renames; Escape, or clicking elsewhere, leaves it as it was. Either way focus
+// goes back to the tree, so F2 and Delete keep working.
+function RenameInput({ entry }: { entry: DirEntry }) {
+  const [name, setName] = useState(entry.name);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(...renameSelection(entry.name, entry.isDir));
+  }, [entry]);
+
+  const finish = () => {
+    cancelRename();
+    document.querySelector<HTMLElement>(".explorer-tree")?.focus();
+  };
+  return (
+    <input
+      ref={ref}
+      className="explorer-input"
+      spellCheck={false}
+      value={name}
+      onChange={(event) => setName(event.target.value)}
+      onBlur={cancelRename}
+      // Clicks in the box stay in the box (the row would open or toggle).
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") finish();
+        if (event.key !== "Enter") return;
+        const next = name.trim();
+        finish();
+        if (next && next !== entry.name) void renameEntry(entry.path, next);
+      }}
+    />
   );
 }
 

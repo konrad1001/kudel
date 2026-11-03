@@ -35,6 +35,34 @@ pub async fn create_file(dir: PathBuf, name: String) -> Result<PathBuf, String> 
     Ok(path)
 }
 
+// Renames a file or folder within its own folder; resolves to the new path. Refuses a
+// name that's taken (fs::rename would replace a file there), except a change of case
+// only: Windows names ignore case, so then the "taken" name is this same entry.
+#[tauri::command]
+pub async fn rename_path(path: PathBuf, name: String) -> Result<PathBuf, String> {
+    let name = check_file_name(&name)?;
+    let parent = path.parent().ok_or_else(|| format!("{} can't be renamed", path.display()))?;
+    let target = parent.join(name);
+    if target == path {
+        return Ok(target);
+    }
+    let case_only = target.to_string_lossy().to_lowercase() == path.to_string_lossy().to_lowercase();
+    if target.exists() && !case_only {
+        return Err(format!("{name} already exists"));
+    }
+    fs::rename(&path, &target).map_err(|err| format!("Could not rename {}: {err}", path.display()))?;
+    Ok(target)
+}
+
+// Moves a file or folder to the Recycle Bin, so a delete can be undone from there.
+#[tauri::command]
+pub async fn trash_path(path: PathBuf) -> Result<(), String> {
+    if !path.exists() {
+        return Err(format!("{} doesn't exist", path.display()));
+    }
+    trash::delete(&path).map_err(|err| format!("Could not move {} to the Recycle Bin: {err}", path.display()))
+}
+
 #[tauri::command]
 pub async fn read_text_file(path: PathBuf) -> Result<String, String> {
     fs::read_to_string(&path).map_err(|err| format!("Could not read {}: {err}", path.display()))
@@ -135,6 +163,49 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    fn rename(path: &Path, name: &str) -> Result<PathBuf, String> {
+        tauri::async_runtime::block_on(rename_path(path.to_path_buf(), name.into()))
+    }
+
+    #[test]
+    fn renames_files_and_folders_in_place() {
+        let dir = temp_dir("rename");
+        fs::write(dir.join("a.strudel"), "x").unwrap();
+        fs::create_dir(dir.join("drums")).unwrap();
+        fs::write(dir.join("drums").join("kick.wav"), "").unwrap();
+
+        assert_eq!(rename(&dir.join("a.strudel"), " b.strudel ").unwrap(), dir.join("b.strudel"));
+        assert_eq!(fs::read_to_string(dir.join("b.strudel")).unwrap(), "x");
+        assert_eq!(rename(&dir.join("drums"), "perc").unwrap(), dir.join("perc"));
+        assert!(dir.join("perc").join("kick.wav").exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn refuses_a_taken_name_but_allows_a_case_change() {
+        let dir = temp_dir("rename-taken");
+        fs::write(dir.join("a.strudel"), "a").unwrap();
+        fs::write(dir.join("b.strudel"), "b").unwrap();
+
+        assert!(rename(&dir.join("a.strudel"), "b.strudel").unwrap_err().contains("already exists"));
+        assert_eq!(fs::read_to_string(dir.join("b.strudel")).unwrap(), "b");
+        assert!(rename(&dir.join("a.strudel"), "x/y").is_err());
+
+        let renamed = rename(&dir.join("a.strudel"), "A.strudel").unwrap();
+        assert_eq!(renamed.file_name().unwrap(), "A.strudel");
+        let names: Vec<_> = fs::read_dir(&dir).unwrap().map(|e| e.unwrap().file_name()).collect();
+        assert!(names.iter().any(|n| n == "A.strudel"), "{names:?}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn trashing_a_missing_path_fails_without_touching_anything() {
+        let dir = temp_dir("trash-missing");
+        let err = tauri::async_runtime::block_on(trash_path(dir.join("nope.wav"))).unwrap_err();
+        assert!(err.contains("doesn't exist"), "{err}");
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
