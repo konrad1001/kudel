@@ -11,7 +11,7 @@ use tauri::State;
 use tauri::async_runtime::spawn_blocking;
 use tauri::ipc::Channel;
 
-use super::files::check_file_name;
+use super::files::{check_file_name, free_path};
 
 // Importing audio from a link: yt-dlp downloads it and has ffmpeg convert it to .wav
 // in a temporary folder, then the front end names it and place_import moves it into
@@ -269,18 +269,6 @@ fn inside(base: &Path, relative: &str) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-// dir/stem.ext, or dir/stem_2.ext, stem_3.ext, ... for the first that doesn't exist.
-// "_2" is how soundsInFolder (src/samples/sampleMap.ts) tells sounds apart too.
-fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
-    let mut path = dir.join(format!("{stem}.{ext}"));
-    let mut n = 2;
-    while path.exists() {
-        path = dir.join(format!("{stem}_{n}.{ext}"));
-        n += 1;
-    }
-    path
-}
-
 // A rename, or a copy when the temporary folder is on another drive.
 fn move_file(from: &Path, to: &Path) -> io::Result<()> {
     fs::rename(from, to).or_else(|_| {
@@ -374,15 +362,6 @@ mod tests {
         assert!(cut_args(Some(125.0), Some(90.0)).is_err());
         assert!(cut_args(Some(-1.0), None).is_err());
         assert!(cut_args(None, Some(f64::NAN)).is_err());
-    }
-
-    #[test]
-    fn numbers_names_that_are_taken() {
-        let dir = temp_dir("free");
-        assert_eq!(free_path(&dir, "amen", "wav"), dir.join("amen.wav"));
-        fs::write(dir.join("amen.wav"), b"").unwrap();
-        fs::write(dir.join("amen_2.wav"), b"").unwrap();
-        assert_eq!(free_path(&dir, "amen", "wav"), dir.join("amen_3.wav"));
     }
 
     #[test]

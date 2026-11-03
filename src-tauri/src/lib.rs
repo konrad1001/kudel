@@ -13,6 +13,7 @@ pub fn run() {
             commands::files::create_file,
             commands::samples::scan_sample_folder,
             commands::samples::allow_asset_folder,
+            commands::samples::write_wav,
             commands::session::load_session,
             commands::session::save_session,
             commands::import::import_tools,

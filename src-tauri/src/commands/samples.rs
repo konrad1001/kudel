@@ -1,11 +1,12 @@
-use std::fs;
-use std::io;
+use std::fs::{self, OpenOptions};
+use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use tauri::ipc::{InvokeBody, Request};
 use tauri::{AppHandle, Manager};
 
-use super::files::read_dir_sorted;
+use super::files::{check_file_name, free_path, read_dir_sorted};
 
 // What WebView2 can decode. Keep in step with isAudioFile in src/files/paths.ts.
 const AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "ogg", "flac", "m4a"];
@@ -50,6 +51,49 @@ pub async fn allow_asset_folder(app: AppHandle, path: PathBuf) -> Result<(), Str
     let canonical = fs::canonicalize(&path)
         .map_err(|err| format!("Could not open {}: {err}", path.display()))?;
     allow_assets(&app, &canonical)
+}
+
+// Where write_wav puts its file: `name`.wav in `dir` (or name_2.wav, ...).
+#[derive(Debug, Deserialize, PartialEq)]
+struct WavTarget {
+    dir: PathBuf,
+    name: String,
+}
+
+// Writes a new .wav, never replacing a file. The front end sends one raw message
+// (packWrite in src/waveform/wavFile.ts): a 4-byte little-endian length, that much JSON
+// naming where it goes, then the file's bytes. Raw, because megabytes of audio as a
+// JSON array of numbers would be slow; the JSON inside it, because request headers
+// can't carry non-ASCII paths. Returns the path written.
+#[tauri::command]
+pub async fn write_wav(request: Request<'_>) -> Result<PathBuf, String> {
+    let InvokeBody::Raw(body) = request.body() else {
+        return Err("write_wav expects raw bytes".into());
+    };
+    let (target, bytes) = unpack_write(body)?;
+    let stem = check_file_name(&target.name)?;
+    let path = free_path(&target.dir, stem, "wav");
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .map_err(|err| format!("Could not create {}: {err}", path.display()))?;
+    file.write_all(bytes)
+        .and_then(|()| file.sync_all())
+        .map_err(|err| {
+            let _ = fs::remove_file(&path);
+            format!("Could not write {}: {err}", path.display())
+        })?;
+    Ok(path)
+}
+
+fn unpack_write(body: &[u8]) -> Result<(WavTarget, &[u8]), String> {
+    let bad = || "write_wav got a malformed message".to_string();
+    let length = body.get(..4).ok_or_else(bad)?;
+    let length = u32::from_le_bytes(length.try_into().map_err(|_| bad())?) as usize;
+    let json = body.get(4..4 + length).ok_or_else(bad)?;
+    let target: WavTarget = serde_json::from_slice(json).map_err(|err| format!("{}: {err}", bad()))?;
+    Ok((target, &body[4 + length..]))
 }
 
 // Tauri canonicalises every requested path before checking the scope, so the
@@ -132,6 +176,30 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         // Compare against the same form the commands produce.
         strip_verbatim(&fs::canonicalize(&dir).unwrap())
+    }
+
+    fn pack(json: &str, file: &[u8]) -> Vec<u8> {
+        let mut out = (json.len() as u32).to_le_bytes().to_vec();
+        out.extend_from_slice(json.as_bytes());
+        out.extend_from_slice(file);
+        out
+    }
+
+    #[test]
+    fn unpacks_where_to_write_and_the_file() {
+        let body = pack(r#"{"dir":"C:\\Café","name":"amen-0s376"}"#, &[1, 2, 3]);
+        let (target, bytes) = unpack_write(&body).unwrap();
+        assert_eq!(target, WavTarget { dir: PathBuf::from(r"C:\Café"), name: "amen-0s376".into() });
+        assert_eq!(bytes, &[1, 2, 3]);
+    }
+
+    #[test]
+    fn refuses_malformed_messages() {
+        assert!(unpack_write(&[1, 0]).is_err());
+        assert!(unpack_write(&pack("{}", &[])).is_err());
+        let mut short = pack(r#"{"dir":"C:\\x","name":"a"}"#, &[]);
+        short.truncate(10);
+        assert!(unpack_write(&short).is_err());
     }
 
     fn names(paths: &[PathBuf]) -> Vec<String> {

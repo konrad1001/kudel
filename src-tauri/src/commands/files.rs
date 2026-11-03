@@ -99,6 +99,18 @@ fn is_hidden(_metadata: &fs::Metadata) -> bool {
     false
 }
 
+// dir/stem.ext, or dir/stem_2.ext, stem_3.ext, ... for the first that doesn't exist.
+// "_2" is how soundsInFolder (src/samples/sampleMap.ts) tells sounds apart too.
+pub(crate) fn free_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+    let mut path = dir.join(format!("{stem}.{ext}"));
+    let mut n = 2;
+    while path.exists() {
+        path = dir.join(format!("{stem}_{n}.{ext}"));
+        n += 1;
+    }
+    path
+}
+
 // A plain name for a new entry inside a folder, never a path.
 pub(crate) fn check_file_name(name: &str) -> Result<&str, String> {
     let name = name.trim();
@@ -190,6 +202,15 @@ mod tests {
         assert!(create("song.strudel").unwrap_err().contains("already exists"));
         assert_eq!(fs::read_to_string(&path).unwrap(), "keep me");
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn numbers_names_that_are_taken() {
+        let dir = temp_dir("free");
+        assert_eq!(free_path(&dir, "amen", "wav"), dir.join("amen.wav"));
+        fs::write(dir.join("amen.wav"), b"").unwrap();
+        fs::write(dir.join("amen_2.wav"), b"").unwrap();
+        assert_eq!(free_path(&dir, "amen", "wav"), dir.join("amen_3.wav"));
     }
 
     #[test]

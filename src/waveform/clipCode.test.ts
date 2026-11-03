@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clipCode, fractionDecimals } from "./clipCode";
+import { clipCode, clipFileName, fractionDecimals } from "./clipCode";
 
 describe("fractionDecimals", () => {
   it("keeps the last digit under a millisecond", () => {
@@ -8,6 +8,16 @@ describe("fractionDecimals", () => {
     expect(fractionDecimals(180)).toBe(6);
     expect(fractionDecimals(0.5)).toBe(3);
     expect(fractionDecimals(0.05)).toBe(2);
+  });
+});
+
+describe("clipFileName", () => {
+  it("names a clip by where it starts, to the millisecond", () => {
+    expect(clipFileName("amen_break", 0.376)).toBe("amen_break-0s376");
+    expect(clipFileName("amen_break", 12.05)).toBe("amen_break-12s050");
+    expect(clipFileName("amen_break", 90.5)).toBe("amen_break-1m30s500");
+    expect(clipFileName("mix", 3723.0004)).toBe("mix-1h02m03s000");
+    expect(clipFileName("amen_break", 0)).toBe("amen_break-0s000");
   });
 });
 

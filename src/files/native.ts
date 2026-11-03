@@ -1,6 +1,7 @@
 // The only place in the front end that talks to Tauri.
 import { Channel, convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { SampleFolder } from "../samples/sampleMap";
+import { packWrite } from "../waveform/wavFile";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
 
@@ -49,6 +50,12 @@ export function createFile(dir: string, name: string): Promise<string> {
 // serve that folder. Rejects with a message naming the folder.
 export function scanSampleFolder(base: string, relative: string): Promise<SampleFolder> {
   return invoke("scan_sample_folder", { base, relative });
+}
+
+// Writes `file` (a whole .wav) as `name`.wav in `dir`, or name_2.wav etc. if that's
+// taken; never replaces a file. Resolves to the path written.
+export function writeWav(dir: string, name: string, file: Uint8Array): Promise<string> {
+  return invoke("write_wav", packWrite({ dir, name }, file));
 }
 
 // Lets the asset protocol serve a folder (recursively), e.g. for previews.

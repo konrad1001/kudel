@@ -16,6 +16,7 @@ import {
 } from "../waveform/waveform";
 import {
   dragSelection,
+  openSample,
   playFrom,
   sampleData,
   select,
@@ -116,11 +117,18 @@ function Toolbar() {
 }
 
 // A [text] button that runs a command, with the command's label and key as its tooltip.
-function CommandButton({ command, children }: { command: string; children: string }) {
+function CommandButton({ command, disabled, children }: { command: string; disabled?: boolean; children: string }) {
   const key = useKeyFor(command);
   const label = getCommand(command)?.label ?? command;
   return (
-    <button type="button" className="ascii-button" title={withKey(label, key)} onClick={() => getCommand(command)?.run()}>
+    <button
+      type="button"
+      className="ascii-button"
+      title={withKey(label, key)}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => getCommand(command)?.run()}
+    >
       [{children}]
     </button>
   );
@@ -245,12 +253,15 @@ function Wave() {
 
 // The line that plays the selection, to copy into the code by hand: the field can be
 // selected from, and [copy] (Ctrl+C while the view has focus) takes all of it. The app
-// never writes it into the code itself.
+// never writes it into the code itself. [write to file] writes the selection as a new
+// .wav next to the original instead.
 function CodeLine() {
   const path = useWaveform((s) => s.path);
   const code = useWaveform(selectClipCode);
   const copied = useWaveform((s) => s.copied);
   const copyError = useWaveform((s) => s.copyError);
+  const hasSelection = useWaveform((s) => s.selection !== null && s.selection.end > s.selection.start);
+  const writing = useWaveform((s) => s.writing);
   const folder = path ? baseName(dirName(path)) : "its folder";
   return (
     <div className="sample-code">
@@ -264,12 +275,39 @@ function CodeLine() {
         style={{ width: `${Math.max((code ?? "…").length, 3) + 1}ch` }}
       />
       <CommandButton command="sample.copyCode">{copied ? "copied" : "copy"}</CommandButton>
-      {copyError && (
+      <CommandButton command="sample.writeClip" disabled={!hasSelection || writing}>
+        {writing ? "writing…" : "write to file"}
+      </CommandButton>
+      {copyError ? (
         <span className="import-error" title={copyError}>
           {copyError}
         </span>
+      ) : (
+        <WriteStatus />
       )}
     </div>
+  );
+}
+
+// What [write to file] last did: the file it wrote (with [open]), or why it couldn't.
+function WriteStatus() {
+  const written = useWaveform((s) => s.written);
+  const error = useWaveform((s) => s.writeError);
+  if (error) {
+    return (
+      <span className="import-error" title={error}>
+        {error}
+      </span>
+    );
+  }
+  if (!written) return null;
+  return (
+    <span className="sample-written">
+      <span className="import-dim">wrote</span> <span title={written}>{baseName(written)}</span>{" "}
+      <button type="button" className="ascii-button" title="Open it here" onClick={() => openSample(written, { focus: true })}>
+        [open]
+      </button>
+    </span>
   );
 }
 

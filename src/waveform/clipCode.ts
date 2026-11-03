@@ -14,6 +14,21 @@ function fraction(value: number, decimals: number): string {
   return String(Number(value.toFixed(decimals)));
 }
 
+// A written clip's file name (without .wav): the original's sound name and where the
+// clip starts, to the millisecond, so clips of one file differ and sort in order.
+// "amen_break" at 0.376s gives "amen_break-0s376"; at 90.5s "amen_break-1m30s500".
+export function clipFileName(base: string, start: number): string {
+  const ms = Math.round(Math.max(0, start) * 1000);
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  const s = Math.floor((ms % 60_000) / 1000);
+  const rest = String(ms % 1000).padStart(3, "0");
+  const two = (n: number) => String(n).padStart(2, "0");
+  if (h) return `${base}-${h}h${two(m)}m${two(s)}s${rest}`;
+  if (m) return `${base}-${m}m${two(s)}s${rest}`;
+  return `${base}-${s}s${rest}`;
+}
+
 // s("name"), with .begin(…) unless the selection starts at the start, and .end(…)
 // unless it runs to the end.
 export function clipCode(name: string, selection: Span | null, duration: number): string {

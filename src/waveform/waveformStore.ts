@@ -2,10 +2,12 @@ import { create } from "zustand";
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
 import { isTextField, registerContextKey } from "../commands/when";
-import { assetUrl, scanSampleFolder } from "../files/native";
+import { refresh } from "../files/explorerStore";
+import { assetUrl, scanSampleFolder, writeWav } from "../files/native";
 import { baseName, dirName, samePath, stem } from "../files/paths";
 import { soundName, soundsInFolder } from "../samples/sampleMap";
-import { clipCode } from "./clipCode";
+import { clipCode, clipFileName } from "./clipCode";
+import { encodeWav, trimWav } from "./wavFile";
 import { showView } from "../layout/layoutStore";
 import { stopPreview } from "../samples/preview";
 import {
@@ -22,7 +24,8 @@ import {
 
 // The Sample view: one audio file, its waveform, a selection and playback of it.
 // UI-only state: nothing here is in the code or changes what patterns play. Playing is
-// an audition, like the explorer's preview.
+// an audition, like Import's [play]; writing a clip makes a new file, which is only
+// heard once code plays it.
 
 export interface SampleInfo {
   duration: number;
@@ -57,6 +60,10 @@ export interface WaveformState {
   // The clip's code line was just copied (for a moment, as feedback), or why it wasn't.
   copied: boolean;
   copyError: string | null;
+  // [write to file]: running, the file it last wrote, or why it couldn't.
+  writing: boolean;
+  written: string | null;
+  writeError: string | null;
 }
 
 export const useWaveform = create<WaveformState>(() => ({
@@ -72,6 +79,9 @@ export const useWaveform = create<WaveformState>(() => ({
   soundName: null,
   copied: false,
   copyError: null,
+  writing: false,
+  written: null,
+  writeError: null,
 }));
 
 const set = useWaveform.setState;
@@ -123,7 +133,7 @@ async function loadSample(path: string): Promise<void> {
   buffer = null;
   channels = [];
   blocks = null;
-  set({ path, status: "loading", error: null, info: null, playing: null, soundName: null, copied: false, copyError: null });
+  set({ path, status: "loading", error: null, info: null, playing: null, soundName: null, copied: false, copyError: null, written: null, writeError: null });
   void lookUpSoundName(path, token);
   try {
     const response = await fetch(assetUrl(path));
@@ -301,6 +311,44 @@ export async function copyClipCode(): Promise<void> {
   copiedTimer = setTimeout(() => set({ copied: false }), COPIED_MS);
 }
 
+// The fade at each end of a written clip, so its cuts don't click.
+const FADE_MS = 5;
+
+// Writes the selection as a new .wav next to the original, named by where it starts
+// (amen_break-0s376.wav, _2 if taken). Never replaces a file, and never touches the
+// code: the new file is only heard once code plays it.
+export async function writeClip(): Promise<void> {
+  const { path, selection, info, writing } = get();
+  if (!path || !selection || !info || writing || selection.end <= selection.start) return;
+  set({ writing: true, written: null, writeError: null });
+  try {
+    const file = await clipBytes(path, selection, info);
+    const written = await writeWav(dirName(path), clipFileName(soundName(stem(path)), selection.start), file);
+    if (get().path === path) set({ written });
+    void refresh();
+  } catch (err) {
+    if (get().path === path) set({ writeError: `Could not write the clip: ${err instanceof Error ? err.message : String(err)}` });
+  } finally {
+    set({ writing: false });
+  }
+}
+
+// A .wav's own frames, re-read from the file (the decoded copy is at the audio
+// context's rate, not the file's); for anything else, or a .wav in a format trimWav
+// can't copy, the decoded audio.
+async function clipBytes(path: string, selection: Span, info: SampleInfo): Promise<Uint8Array> {
+  if (info.wav) {
+    const response = await fetch(assetUrl(path));
+    if (!response.ok) throw new Error(`could not read ${baseName(path)} (${response.status})`);
+    const rate = info.wav.sampleRate;
+    const trimmed = trimWav(await response.arrayBuffer(), selection.start * rate, selection.end * rate, FADE_MS);
+    if (trimmed) return trimmed;
+  }
+  if (!buffer) throw new Error("the audio isn't loaded");
+  const rate = buffer.sampleRate;
+  return encodeWav(channels, rate, selection.start * rate, selection.end * rate, FADE_MS);
+}
+
 const ZOOM_STEP = 0.5;
 
 // Keys for these are in src/commands/keybindings.ts, "when": "sampleFocus".
@@ -312,4 +360,5 @@ export const SAMPLE_COMMANDS: Command[] = [
   { id: "sample.zoomOut", label: "Zoom Out", run: () => zoomBy(1 / ZOOM_STEP) },
   { id: "sample.zoomFit", label: "Zoom to Fit", run: zoomFit },
   { id: "sample.copyCode", label: "Copy Clip Code", run: () => void copyClipCode() },
+  { id: "sample.writeClip", label: "Write Selection to File", run: () => void writeClip() },
 ];
