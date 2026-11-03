@@ -376,6 +376,11 @@ body {
   opacity: 0.45;
 }
 
+/* The audio file open in the Sample view: a bar down its left edge. */
+.explorer-row.sampled {
+  box-shadow: inset 2px 0 0 var(--icon-audio);
+}
+
 /* An audio file being auditioned: its wave icon lights up. */
 /* File-type icons in the chevron slot. */
 .chevron.strudel {
@@ -1456,6 +1461,103 @@ body {
   display: flex;
   gap: 8px;
   margin-left: auto;
+}
+
+/* ================================================================ */
+/* == Sample                                                        */
+/* ================================================================ */
+
+/* A toolbar line, the waveform filling the rest, and a scroll bar under it. */
+.sample {
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 12px 8px;
+  outline: none;
+  white-space: nowrap;
+}
+
+/* The file name in the tab keeps its own case. */
+.panel-tab-file {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.sample-toolbar {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  min-width: 0;
+}
+
+.sample-buttons,
+.sample-zoom {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sample-zoom {
+  margin-left: auto;
+}
+
+/* A switched-on [loop] stays lit. */
+.ascii-button.on {
+  color: var(--playing);
+  opacity: 1;
+}
+
+.sample-message {
+  margin: 0;
+  opacity: 0.45;
+}
+
+.sample-message.import-error {
+  opacity: 1;
+}
+
+.sample-wave {
+  position: relative;
+  flex: 1;
+  min-height: 40px;
+  cursor: text;
+  opacity: 0.75;
+}
+
+.sample:focus-within .sample-wave {
+  opacity: 1;
+}
+
+.sample-wave canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* A rule the width of the file, with a bar where the view is. */
+.sample-scroll {
+  position: relative;
+  flex: none;
+  height: 7px;
+  background: linear-gradient(var(--gutterForeground, #3c3c3c), var(--gutterForeground, #3c3c3c)) center / 100% 1px
+    no-repeat;
+}
+
+.sample-thumb {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  min-width: 6px;
+  background-color: var(--foreground, #cccccc);
+  opacity: 0.35;
+}
+
+.sample-thumb:hover {
+  opacity: 0.6;
 }
 
 /* ================================================================ */

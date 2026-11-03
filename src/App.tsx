@@ -21,10 +21,12 @@ import { Keys } from "./panels/Keys";
 import { MENU_COMMANDS, MenuBar, type Menu } from "./panels/MenuBar";
 import { Panel } from "./panels/Panel";
 import { Reference } from "./panels/Reference";
+import { Sample, SampleTitle } from "./panels/Sample";
 import { Sidebar } from "./panels/Sidebar";
 import { Sounds } from "./panels/Sounds";
 import { StatusBar } from "./panels/StatusBar";
 import { TabBar } from "./panels/TabBar";
+import { useNoPageZoom } from "./pageZoom";
 import { RUN_COMMANDS } from "./playback";
 import { REFERENCE_COMMANDS } from "./reference/referenceStore";
 import { PREVIEW_COMMANDS } from "./samples/preview";
@@ -32,6 +34,7 @@ import { resolveLocalSamples } from "./samples/resolve";
 import { SOUNDS_COMMANDS } from "./sounds/soundsStore";
 import { STATUS_COMMANDS } from "./status/statusStore";
 import { persistSession, restoreSessionOnce } from "./session/persist";
+import { SAMPLE_COMMANDS } from "./waveform/waveformStore";
 import "./App.css";
 
 // samples("./drums") in code loads that folder, relative to the file being evaluated.
@@ -45,6 +48,7 @@ registerCommands([
   ...LAYOUT_COMMANDS,
   ...KEYS_COMMANDS,
   ...IMPORT_COMMANDS,
+  ...SAMPLE_COMMANDS,
   ...SOUNDS_COMMANDS,
   ...REFERENCE_COMMANDS,
   ...STATUS_COMMANDS,
@@ -57,6 +61,7 @@ registerViews([
   { id: "sounds", title: "Sounds", region: "sidebar", component: Sounds },
   { id: "keys", title: "Keys", region: "panel", component: Keys },
   { id: "import", title: "Import", region: "panel", component: Import },
+  { id: "sample", title: "Sample", region: "panel", component: Sample, Title: SampleTitle },
   { id: "reference", title: "Reference", region: "aside", component: Reference },
 ]);
 
@@ -73,7 +78,7 @@ const MENUS: Menu[] = [
     label: "View",
     groups: [
       ["view.toggleSidebar", "view.togglePanel", "view.toggleAside", "view.toggleMaximised"],
-      ["view.sounds", "view.keys", "view.import", "view.reference", "reference.lookUp"],
+      ["view.sounds", "view.keys", "view.import", "view.sample", "view.reference", "reference.lookUp"],
       ["editor.next", "editor.previous"],
     ],
   },
@@ -85,6 +90,7 @@ const START_COMMANDS = ["file.new", "file.open", "file.openFolder", "view.toggle
 
 function App() {
   useKeyboard();
+  useNoPageZoom();
   useTabTracking();
   const noEditor = useTabs((s) => s.activeId === null);
   const maximised = useLayout((s) => s.maximised && s.aside.visible);

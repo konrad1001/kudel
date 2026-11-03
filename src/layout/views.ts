@@ -11,6 +11,9 @@ export interface View {
   title: string;
   region: Region;
   component: ComponentType;
+  // Drawn in place of `title` in the panel's and aside's tabs, for a title that changes
+  // (the Sample view names its file).
+  Title?: ComponentType;
 }
 
 const registry = new Map<string, View>();

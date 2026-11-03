@@ -27,6 +27,7 @@ import {
   type ImportJob,
 } from "../importer/importStore";
 import { togglePreview, usePreview } from "../samples/preview";
+import { openSample, stopPlayback } from "../waveform/waveformStore";
 
 // The panel's importer: paste a link, get a .wav in the open folder. yt-dlp does the
 // downloading; the list shows each import's progress, then the file to play or find.
@@ -180,11 +181,21 @@ function JobDetail({ job }: { job: ImportJob }) {
       return (
         <>
           {job.bytes !== null && <span className="import-dim">{bytesText(job.bytes)}</span>}
-          <button type="button" className="ascii-button" onClick={() => togglePreview(path)}>
+          <button
+            type="button"
+            className="ascii-button"
+            onClick={() => {
+              stopPlayback();
+              togglePreview(path);
+            }}
+          >
             {previewing ? "[stop]" : "[play]"}
           </button>
           <button type="button" className="ascii-button" onClick={() => void revealPath(path)}>
             [reveal]
+          </button>
+          <button type="button" className="ascii-button" title="Open in the Sample view" onClick={() => openSample(path, { focus: true })}>
+            [edit]
           </button>
         </>
       );

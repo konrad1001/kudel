@@ -33,12 +33,12 @@ export function RegionHeader({
               className="panel-tab"
               onClick={() => showView(view.id, { focus: true })}
             >
-              {view.title}
+              {view.Title ? <view.Title /> : view.title}
             </button>
           ))}
         </div>
       ) : (
-        <span className="panel-title">{shown.title}</span>
+        <span className="panel-title">{shown.Title ? <shown.Title /> : shown.title}</span>
       )}
       <div className="panel-buttons">
         {children}

@@ -55,6 +55,11 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "C", command: "keys.clear", when: "keysFocus" },
   { key: "Ctrl+C", command: "keys.copy", when: "keysFocus" },
   // Back to the editor from the panel or the aside. Before stopPreview, so Escape stops a preview first.
+  { key: "Space", command: "sample.playStop", when: "sampleFocus" },
+  { key: "L", command: "sample.toggleLoop", when: "sampleFocus" },
+  { key: "=", command: "sample.zoomIn", when: "sampleFocus" },
+  { key: "-", command: "sample.zoomOut", when: "sampleFocus" },
+  { key: "0", command: "sample.zoomFit", when: "sampleFocus" },
   { key: "Escape", command: "view.focusEditor", when: "panelFocus" },
   // Not from the reference's search box, which handles its own Escape (clear, then leave).
   { key: "Escape", command: "view.focusEditor", when: "asideFocus && !inputFocus" },

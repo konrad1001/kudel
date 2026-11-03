@@ -13,7 +13,8 @@ import {
 import type { DirEntry } from "../files/native";
 import { baseName, isAudioFile, isCodeFile, samePath } from "../files/paths";
 import { SAMPLE_DRAG_TYPE, type DraggedSample } from "../editor/sampleDrop";
-import { togglePreview, usePreview } from "../samples/preview";
+import { usePreview } from "../samples/preview";
+import { openSample, useWaveform } from "../waveform/waveformStore";
 import { RecentList } from "./RecentList";
 
 // The sidebar's view of the open folder.
@@ -107,17 +108,21 @@ function EntryRow({
     ),
   );
   const audio = !entry.isDir && isAudioFile(entry.name);
-  const previewing = usePreview((s) => samePath(s.path, entry.path));
+  // Shown in the Sample view, and sounding there (or in Import's [play]).
+  const sampled = useWaveform((s) => samePath(s.path, entry.path));
+  const sampling = useWaveform((s) => s.playing !== null && samePath(s.path, entry.path));
+  const previewing = usePreview((s) => samePath(s.path, entry.path)) || sampling;
   const openable = entry.isDir || isCodeFile(entry.name) || audio;
   const isStrudel = entry.name.endsWith(".strudel");
 
+  // An audio file opens in the Sample view, focused, ready for Space to play it.
   const onClick = () => {
     if (entry.isDir) {
       void toggleDir(entry.path);
       return;
     }
     selectFile(parent);
-    if (audio) togglePreview(entry.path);
+    if (audio) openSample(entry.path, { focus: true });
     else if (openable) void openPath(entry.path);
   };
 
@@ -128,6 +133,7 @@ function EntryRow({
     active && "active",
     !openable && "dim",
     previewing && "previewing",
+    sampled && "sampled",
   ]
     .filter(Boolean)
     .join(" ");

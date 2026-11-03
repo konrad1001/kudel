@@ -4,8 +4,9 @@ import { registerContextKey } from "../commands/when";
 import { assetUrl, showError } from "../files/native";
 import { baseName, samePath } from "../files/paths";
 
-// Auditioning one sample from the explorer. This is the one sound that isn't in the
-// code: it plays once, outside Strudel's audio graph, and never changes the music.
+// Auditioning one file without opening it: Import's [play]. (The explorer opens audio
+// in the Sample view instead.) It plays once, outside Strudel's audio graph, and never
+// changes the music.
 export const usePreview = create<{ path: string | null }>(() => ({ path: null }));
 
 registerContextKey("previewing", () => usePreview.getState().path !== null);

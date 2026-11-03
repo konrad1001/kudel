@@ -17,6 +17,7 @@
         "height": 700,
         "center": true,
         "dragDropEnabled": false,
+        "zoomHotkeysEnabled": true,
         "theme": "Dark",
         "backgroundColor": "#0c0c0c"
       }

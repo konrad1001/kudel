@@ -12,6 +12,6 @@ export function shortcutFromEvent({ key, ctrlKey, altKey, shiftKey }: KeyLike): 
   if (ctrlKey) parts.push("Ctrl");
   if (altKey) parts.push("Alt");
   if (shiftKey) parts.push("Shift");
-  parts.push(key.length === 1 ? key.toUpperCase() : key);
+  parts.push(key === " " ? "Space" : key.length === 1 ? key.toUpperCase() : key);
   return parts.join("+");
 }

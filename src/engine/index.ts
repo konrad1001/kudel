@@ -544,6 +544,65 @@ export async function auditionNote({ note, s, duration, release = 0.1 }: Auditio
   await webaudio.superdough({ ...value, clip: 1, release }, now + AUDITION_LATENCY, duration);
 }
 
+// Decodes an audio file's bytes at the shared audio context's rate. The bytes are
+// used up (detached) by decoding.
+export function decodeAudio(bytes: ArrayBuffer): Promise<AudioBuffer> {
+  return webaudio.getAudioContext().decodeAudioData(bytes);
+}
+
+// Seconds on the audio context's clock, the one BufferPlayback.startedAt is on.
+export function audioTime(): number {
+  return webaudio.getAudioContext().currentTime;
+}
+
+export interface BufferPlayback {
+  // When it started, on audioTime()'s clock.
+  startedAt: number;
+  // Fades out quickly and stops; onEnded still fires.
+  stop(): void;
+}
+
+// The fade on stopping, so cutting a file mid-sound doesn't click.
+const BUFFER_FADE = 0.01;
+
+// Plays part of a decoded file, from `from` to `to` seconds, once or looping. Like
+// auditions it's outside the scheduler and straight to the output (not through
+// superdough's effects), so it never changes the music and Stop doesn't cut it. Called
+// from a key press or click, so audio may start.
+export async function playBuffer(
+  buffer: AudioBuffer,
+  { from, to, loop, onEnded }: { from: number; to: number; loop: boolean; onEnded: () => void },
+): Promise<BufferPlayback> {
+  await ensureAudio();
+  const ac = webaudio.getAudioContext();
+  const source = ac.createBufferSource();
+  const gain = ac.createGain();
+  source.buffer = buffer;
+  source.connect(gain).connect(ac.destination);
+  source.onended = () => {
+    gain.disconnect();
+    onEnded();
+  };
+  const startedAt = ac.currentTime + AUDITION_LATENCY;
+  if (loop) {
+    source.loop = true;
+    source.loopStart = from;
+    source.loopEnd = to;
+    source.start(startedAt, from);
+  } else {
+    source.start(startedAt, from, to - from);
+  }
+  return {
+    startedAt,
+    stop: () => {
+      const now = ac.currentTime;
+      gain.gain.setValueAtTime(gain.gain.value, now);
+      gain.gain.linearRampToValueAtTime(0, now + BUFFER_FADE);
+      source.stop(now + BUFFER_FADE);
+    },
+  };
+}
+
 const SOUNDS_BATCH_MS = 100;
 
 // Calls `listener` with every registered sound now, and again after changes. Loading

@@ -42,6 +42,7 @@ Everything personalisable comes from one file, applied live.
 - [ ] Settings cover: editor theme, font family and size, keybinding mode (`codemirror`, `vim`, `emacs`, `vscode`), the editor on/off switches, app shortcuts, and window start size (moving the 75% rule out of Rust).
 - [ ] A shortcut or menu entry to open `settings.json` in the editor or the default app.
 - [ ] Custom themes can be defined in the settings file, not only in code.
+- [ ] The Sample view's longest file (5 minutes now, `MAX_MINUTES` in `src/waveform/waveformStore.ts`) comes from the settings file. Decoded audio is about 23 MB per stereo minute, so the setting's description should say what it costs.
 
 **Done when:** editing and saving `settings.json` changes the theme, font and keybindings in the running app; deleting the file recreates it from defaults; a typo in it shows a warning and falls back to defaults for that key.
 
@@ -133,8 +134,10 @@ Getting audio files into the open folder, where the explorer, previews and `samp
 
 ## 9. Sample editor
 
-A bottom-panel view for one audio file, opened from the explorer (double-click an audio file). Edits never overwrite the original: they write new files, or write positions into the code.
+A bottom-panel view for one audio file, opened from the explorer (click an audio file). Edits never overwrite the original: they write new files, or write positions into the code.
 
+- [x] **Sample view:** a bottom-panel view for one file. Clicking an audio file in the explorer (or `[edit]` on an import) opens it there with focus, ready for Space; the explorer no longer plays files itself, and marks the one the view shows. Waveform on a canvas in the terminal style with a time ruler; wheel zooms around the pointer (`=`/`-`/`0`), Shift+wheel or the scroll bar scrolls. Drag selects, Shift+click stretches the selection, click plays from that point; Space plays the selection (or from the cursor), `L` loops it, with a moving playhead. Each file keeps its view and selection for the session. Playback goes straight to the output through the engine, outside the scheduler. Files over 5 minutes are refused (adjustable once settings exist, milestone 3).
+- [ ] **Clip out:** `[trim → new file]` (pure WAV encoder, Rust writes) and inserting `.begin(…).end(…)` for the selection at the cursor.
 - [ ] **Waveform and markers:** the decoded file drawn in the terminal style, with transients marked. Click to add markers, drag to move them; markers snap to transients. Clicking a region auditions it through superdough. Transient detection is a pure, tested function over the samples (energy jumps, threshold, minimum gap).
 - [ ] **Loop editing:** set the start (snaps to the nearest transient, usually the first downbeat) and the length in bars; the end snaps to where the loop wraps. A beat grid overlays the region so it's visible whether hits sit on the beat; nudge the end until they do. Loop audition plays just the region on repeat, optionally with a click at the code's tempo. Commit as a trimmed new file with short fades plus `s("name").loopAt(n)`, or non-destructively as `.begin(…).end(…).loopAt(n)` on the original. Offer `.splice(n, "0 1 2 …")` for breaks (each slice re-speeded to its step). `loopAt` and `splice` change pitch with tempo; test superdough's phase-vocoder `stretch` before relying on it for pitch-preserving loops (its doc comment and source disagree).
 - [ ] **Slice export:** markers or equal divisions (8, 16, 32) become files (`chops/name/01.wav`, …) with short fades, so `s("name:3")` picks a chop; or, for equal divisions, write `.slice(n, "…")` on the whole file instead. The WAV encoder is a pure, tested function; Rust writes the bytes.

@@ -48,7 +48,8 @@ src/
   files/       file, folder and tab actions, the tabs and explorer stores, pure
                path/text/tab helpers; native.ts is the only file here that calls Tauri
   samples/     local samples: folder → sample map and sound names, the samples('./…')
-               resolver, explorer previews, and drag-to-insert
+               resolver, quick previews (Import's [play]), and drag-to-insert. Clicking
+               audio in the explorer opens it in the Sample view (waveform/)
   session/     what was open (folder, tabs, unsaved text, cursors, recents), saved to
                %APPDATA%\dev.konrad.strudel-studio\session.json a second after each
                change and on close, and restored on start ("hot exit"). Closing the app
@@ -74,6 +75,10 @@ src/
   importer/    the Import view's logic: reading yt-dlp's output into progress, naming
                the file as a sound name, formatting (pure, tested) and its store. The
                destination is relative to the open folder and saved in the session
+  waveform/    the Sample view's logic: peaks, the visible span and zoom, ruler ticks,
+               the playhead, .wav headers (pure, tested), the canvas drawing, and its
+               store. Decoded audio stays outside the store; playing a file is an
+               audition through engine.playBuffer, never part of the pattern
   panels/      UI panels (menu bar, sidebar, bottom panel, explorer, keys, ...)
   settings/    settings schema, defaults, zustand store
   commands/    the command registry (id, label, run), keybindings (key, command id,
@@ -104,6 +109,7 @@ Pin **exact** versions of every `@strudel/*` package and `superdough` in `packag
 - **HTML5 drag and drop needs `dragDropEnabled: false`** on the window in `tauri.conf.json`. Tauri replaces WebView2's drag-drop handler by default (for its native file-drop events, which we don't use), and every in-page drag then shows the "not allowed" cursor.
 - **First sounds get lost two ways.** (1) superdough fixes a note's start time before loading its sample or soundfont and skips it if the file arrives late ("skip hap: still loading"), so `engine.auditionNote` loads the file first (`getSampleBuffer` / `getFontBufferSource`) and only then schedules. (2) `resume()` resolves before the output device actually plays (about 100ms in WebView2, longer on some hardware), and sound scheduled in that gap is never heard, so `ensureAudio` also waits until `getOutputTimestamp().contextTime` moves. The Keys view calls `engine.warmUpAudio` on focus, so audio is already running before the first key; it only starts audio during a user gesture (`navigator.userActivation.isActive`), because outside one `resume()` never settles.
 - **Stopping only stops the scheduler.** Notes already handed to superdough (scheduled ahead, long samples, release, reverb and delay tails) play out. On stop the engine's `cutSound` gives superdough's audio controller a fresh output and orbits, then fades the old ones out over 30ms and disconnects them. That reaches into `SuperdoughAudioController` internals (`nodes`, `buses`, `output.initializeAudio`), so re-check it when upgrading superdough.
+- **Trackpad pinch needs WebView2's zoom on.** Tauri's default (`zoomHotkeysEnabled: false`) makes wry turn off WebView2's zoom control and pinch zoom, and then a touchpad pinch never reaches the page. `tauri.conf.json` turns it on so a pinch arrives as wheel events with `ctrlKey`, and `src/pageZoom.ts` prevents the default of every ctrl+wheel and Ctrl+= / Ctrl+- / Ctrl+0, so the app itself never zooms. Views that want a pinch (the Sample view) read those wheel events.
 - **yt-dlp and ffmpeg come from PATH** (`winget install yt-dlp.yt-dlp` also installs `yt-dlp.FFmpeg` and deno, which yt-dlp uses for YouTube's JS challenges), as the app saw PATH when it started: after installing, start `npm run tauri dev` from a new terminal. `import.rs` starts them with `CREATE_NO_WINDOW` and cancels with `taskkill /T`, because yt-dlp's Windows build runs as two processes and starts ffmpeg as a third. Clips are cut by ffmpeg during the wav conversion (`--postprocessor-args "ExtractAudio:-ss … -to …"`), not with `--download-sections`: that cuts at the stream's blocks (seconds early) unless `--force-keyframes-at-cuts`, which re-encodes to low-bitrate opus first. The progress template's `progress.*` field names aren't in yt-dlp's README; if one changes it prints `NA` and the Import view shows no bar, but imports still work.
 - **Asset protocol scope.** Local files are only reachable via `convertFileSrc` if their path is inside the configured `assetProtocol.scope`.
 - **Default sounds mirror strudel.cc**, so code behaves the same here as on the site. `src/engine/soundSources.ts` copies the sample banks from strudel.cc's `website/src/repl/prebake.mjs` (not published to npm; read it at the git tag matching our versions), and `src/engine/piano.ts` reproduces its `.piano()`. Re-sync both when upgrading Strudel. They load from the network (`strudel.b-cdn.net`, `felixroos.github.io` for GM soundfonts), so the app isn't offline-capable until local samples are added.

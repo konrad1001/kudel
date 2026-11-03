@@ -23,4 +23,9 @@ describe("shortcutFromEvent", () => {
     expect(press("Enter", { ctrl: true })).toBe("Ctrl+Enter");
     expect(press("Escape")).toBe("Escape");
   });
+
+  it("names the space bar", () => {
+    expect(press(" ")).toBe("Space");
+    expect(press(" ", { shift: true })).toBe("Shift+Space");
+  });
 });
