@@ -28,6 +28,7 @@ const session: Session = {
   recentFiles: ["C:\\set\\a.strudel"],
   recentFolders: ["C:\\set"],
   keys: { octave: 3, sound: "gm_epiano1", length: 0.25 },
+  importDir: "./samples/new",
 };
 
 describe("parseSession", () => {
@@ -57,6 +58,14 @@ describe("parseSession", () => {
     ]);
     expect(parsed.active).toBe(0);
     expect(parsed.recentFiles).toEqual(["C:\\a.strudel"]);
+    expect(parsed.importDir).toBe("./imported");
+  });
+
+  it("keeps the import folder only when it's relative to the open folder", () => {
+    const parse = (importDir: unknown) => parseSession(JSON.stringify({ version: 1, importDir })).importDir;
+    expect(parse("./")).toBe("./");
+    expect(parse("C:\\elsewhere")).toBe("./imported");
+    expect(parse("../up")).toBe("./imported");
   });
 
   it("reads the explorer's place from a session saved before the layout", () => {

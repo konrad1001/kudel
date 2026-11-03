@@ -1,5 +1,5 @@
 // The only place in the front end that talks to Tauri.
-import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import { Channel, convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { SampleFolder } from "../samples/sampleMap";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { message, open, save } from "@tauri-apps/plugin-dialog";
@@ -19,8 +19,8 @@ export async function pickFileToOpen(): Promise<string | null> {
   return open({ filters: [{ name: "Strudel or JavaScript", extensions: ["strudel", "js"] }] });
 }
 
-export async function pickFolder(): Promise<string | null> {
-  return open({ directory: true });
+export async function pickFolder(defaultPath?: string): Promise<string | null> {
+  return open({ directory: true, defaultPath });
 }
 
 // Windows adds the selected filter's extension when the name has none.
@@ -59,6 +59,55 @@ export function allowAssetFolder(path: string): Promise<void> {
 // The URL the WebView fetches a local file from. Only works inside allowed folders.
 export function assetUrl(path: string): string {
   return convertFileSrc(path);
+}
+
+// Mirrors ImportTools in src-tauri/src/commands/import.rs: the first line each prints
+// about its version, null when it isn't on PATH.
+export interface ImportTools {
+  ytDlp: string | null;
+  ffmpeg: string | null;
+}
+
+export function importTools(): Promise<ImportTools> {
+  return invoke("import_tools");
+}
+
+// Downloads `url` with yt-dlp as a .wav in a temporary folder, calling `onLine` with
+// each line it prints. `from` and `to` (seconds, null for the start or end) keep only
+// that part. Resolves to the .wav; rejects with "cancelled" after cancelImport.
+export function importUrl(
+  id: number,
+  url: string,
+  clip: { from: number | null; to: number | null } | null,
+  onLine: (line: string) => void,
+): Promise<string> {
+  return invoke("import_url", {
+    id,
+    url,
+    from: clip?.from ?? null,
+    to: clip?.to ?? null,
+    onLine: new Channel<string>(onLine),
+  });
+}
+
+export function cancelImport(id: number): Promise<void> {
+  return invoke("cancel_import", { id });
+}
+
+// Moves a downloaded file to `relative` inside `base` as `name`.wav (name_2.wav, ...
+// if taken). Mirrors PlacedImport in import.rs.
+export function placeImport(
+  from: string,
+  base: string,
+  relative: string,
+  name: string,
+): Promise<{ path: string; bytes: number }> {
+  return invoke("place_import", { from, base, relative, name });
+}
+
+// Runs `yt-dlp -U`; resolves or rejects with what it printed.
+export function updateYtDlp(): Promise<string> {
+  return invoke("update_yt_dlp");
 }
 
 // The session file in the app data folder; null on first run.

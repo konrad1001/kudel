@@ -1300,6 +1300,165 @@ body {
 }
 
 /* ================================================================ */
+/* == Import                                                        */
+/* ================================================================ */
+
+/* Fields over a list of imports, one line each, and the tools' versions at the foot. */
+.import {
+  box-sizing: border-box;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 12px 8px;
+  white-space: nowrap;
+}
+
+.import-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.import-field {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+.import-label {
+  flex: none;
+  width: 4ch;
+  opacity: 0.45;
+}
+
+.import-url {
+  flex: 1;
+  min-width: 0;
+  max-width: 80ch;
+}
+
+.import-url::placeholder {
+  color: inherit;
+  opacity: 0.3;
+}
+
+.import-time {
+  width: 8ch;
+}
+
+.import-time::placeholder {
+  color: inherit;
+  opacity: 0.3;
+}
+
+.import-dir {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-note,
+.import-dim {
+  opacity: 0.45;
+}
+
+.import-note {
+  margin: 0;
+}
+
+.import-jobs {
+  flex: 1;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
+  padding-top: 6px;
+}
+
+.import-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  line-height: 1.6;
+}
+
+.import-mark {
+  flex: none;
+  width: 1ch;
+  text-align: center;
+}
+
+.import-job.running .import-mark {
+  color: var(--playing);
+}
+
+.import-job.done .import-mark {
+  color: var(--icon-audio);
+}
+
+.import-name {
+  flex: 0 1 auto;
+  min-width: 8ch;
+  max-width: 48ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-job.cancelled .import-name {
+  opacity: 0.45;
+}
+
+.import-progress {
+  display: flex;
+  gap: 12px;
+  white-space: pre;
+}
+
+.import-error {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #f14c4c;
+}
+
+.import-log {
+  max-height: 12em;
+  margin: 2px 0 6px 2ch;
+  padding: 4px 8px;
+  overflow: auto;
+  font: inherit;
+  font-size: 10px;
+  white-space: pre-wrap;
+  border-left: 1px solid var(--gutterForeground, #3c3c3c);
+  opacity: 0.7;
+  /* The panel turns selection off; the log is for copying from. */
+  user-select: text;
+}
+
+.import-tools {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  min-width: 0;
+  font-size: 10px;
+}
+
+.import-note-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.import-tool-buttons {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ================================================================ */
 /* == Aside                                                         */
 /* ================================================================ */
 

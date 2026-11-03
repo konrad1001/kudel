@@ -100,7 +100,7 @@ fn is_hidden(_metadata: &fs::Metadata) -> bool {
 }
 
 // A plain name for a new entry inside a folder, never a path.
-fn check_file_name(name: &str) -> Result<&str, String> {
+pub(crate) fn check_file_name(name: &str) -> Result<&str, String> {
     let name = name.trim();
     if name.is_empty() || name == "." || name == ".." {
         return Err("A file name is required".into());

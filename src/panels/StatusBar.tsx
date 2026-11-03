@@ -1,6 +1,9 @@
 import { useKeyFor, withKey } from "../commands/keybindings";
 import { activateTab } from "../files/actions";
 import { tabTitle } from "../files/tabs";
+import { statusText } from "../importer/importer";
+import { useImport } from "../importer/importStore";
+import { showView } from "../layout/layoutStore";
 import { useTabs } from "../files/tabsStore";
 import { cycleText, loadingText, tempoText } from "../status/format";
 import { revealError, useStatus } from "../status/statusStore";
@@ -16,6 +19,7 @@ export function StatusBar() {
       <PlayState started={transport.started} evaluating={transport.evaluating} />
       <ErrorState />
       <div className="status-right">
+        <ImportState />
         {transport.loading > 0 && <span className="status-item">{loadingText(transport.loading)}</span>}
         {transport.started && (
           <span className="status-item" title="Current cycle">
@@ -84,6 +88,17 @@ function ErrorState() {
     <span className="status-item status-error" title={error.message}>
       {text}
     </span>
+  );
+}
+
+// Imports running in the Import view, so the panel can be closed meanwhile.
+function ImportState() {
+  const text = useImport((s) => statusText(s.jobs.filter((job) => job.status === "running").map((job) => job.progress)));
+  if (!text) return null;
+  return (
+    <button type="button" className="status-item status-button" title="Show Import" onClick={() => showView("import", { focus: true })}>
+      {text}
+    </button>
   );
 }
 

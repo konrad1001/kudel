@@ -5,6 +5,7 @@ import { askCloseAnyway, loadSession, onWindowClose, readTextFile, saveSession }
 import { useRecent } from "../files/recentStore";
 import { useTabs } from "../files/tabsStore";
 import { decodeFile } from "../files/text";
+import { setImportDir, useImport } from "../importer/importStore";
 import { useKeys } from "../keys/keysStore";
 import { useLayout } from "../layout/layoutStore";
 import { parseSession, restoreTab, serializeSession, type Session } from "./session";
@@ -37,6 +38,7 @@ function currentSession(): Session {
     recentFiles: files,
     recentFolders: folders,
     keys: { octave, sound, length },
+    importDir: useImport.getState().dir,
   };
 }
 
@@ -47,6 +49,7 @@ async function restore(): Promise<void> {
   useRecent.setState({ files: session.recentFiles, folders: session.recentFolders });
   useLayout.setState(session.layout);
   useKeys.setState(session.keys);
+  setImportDir(session.importDir);
   await restoreExplorer({ root: session.folder, expanded: session.expanded });
   let activeId: string | null = null;
   let lastId: string | null = null;
@@ -95,6 +98,10 @@ export function persistSession(): () => void {
     // Only the settings: playing notes changes the rest many times a second.
     useKeys.subscribe((s, prev) => {
       if (s.octave !== prev.octave || s.sound !== prev.sound || s.length !== prev.length) schedule();
+    }),
+    // Only the destination: progress changes many times a second.
+    useImport.subscribe((s, prev) => {
+      if (s.dir !== prev.dir) schedule();
     }),
     engine.onCodeChange(schedule),
     onWindowClose(async () => {

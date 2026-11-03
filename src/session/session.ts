@@ -1,5 +1,6 @@
 import { samePath } from "../files/paths";
 import type { LineEnding } from "../files/text";
+import { DEFAULT_IMPORT_DIR } from "../importer/importer";
 import { DEFAULT_KEYS_SETTINGS, parseKeysSettings, type KeysSettings } from "../keys/notes";
 import { DEFAULT_LAYOUT, parseRegion, parseSections, type Layout } from "../layout/layout";
 
@@ -30,6 +31,8 @@ export interface Session {
   recentFiles: string[];
   recentFolders: string[];
   keys: KeysSettings;
+  // Where imports go, relative to the open folder.
+  importDir: string;
 }
 
 export const EMPTY_SESSION: Session = {
@@ -41,6 +44,7 @@ export const EMPTY_SESSION: Session = {
   recentFiles: [],
   recentFolders: [],
   keys: DEFAULT_KEYS_SETTINGS,
+  importDir: DEFAULT_IMPORT_DIR,
 };
 
 const VERSION = 1;
@@ -101,6 +105,7 @@ export function parseSession(text: string | null): Session {
     recentFiles: strings(raw.recentFiles).slice(0, MAX_RECENT),
     recentFolders: strings(raw.recentFolders).slice(0, MAX_RECENT),
     keys: parseKeysSettings(raw.keys),
+    importDir: isString(raw.importDir) && raw.importDir.startsWith("./") ? raw.importDir : DEFAULT_IMPORT_DIR,
   };
 }
 

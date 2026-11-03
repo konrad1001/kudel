@@ -22,6 +22,7 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+Alt+B", command: "view.toggleAside" },
   { key: "Ctrl+Shift+M", command: "view.toggleMaximised" },
   { key: "F1", command: "reference.lookUp" },
+  { key: "Ctrl+Alt+I", command: "view.import" },
   { key: "Ctrl+Tab", command: "editor.next" },
   { key: "Ctrl+Shift+Tab", command: "editor.previous" },
   // Also in StrudelMirror's own editor keymap (with Alt+Enter and Alt+.); these
