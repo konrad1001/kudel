@@ -2,8 +2,10 @@ import { create } from "zustand";
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
 import { isTextField, registerContextKey } from "../commands/when";
-import { assetUrl } from "../files/native";
-import { baseName, samePath } from "../files/paths";
+import { assetUrl, scanSampleFolder } from "../files/native";
+import { baseName, dirName, samePath, stem } from "../files/paths";
+import { soundName, soundsInFolder } from "../samples/sampleMap";
+import { clipCode } from "./clipCode";
 import { showView } from "../layout/layoutStore";
 import { stopPreview } from "../samples/preview";
 import {
@@ -38,7 +40,7 @@ export interface Playing {
   startedAt: number;
 }
 
-interface WaveformState {
+export interface WaveformState {
   path: string | null;
   status: "empty" | "loading" | "ready" | "error";
   error: string | null;
@@ -50,6 +52,11 @@ interface WaveformState {
   cursor: number;
   loop: boolean;
   playing: Playing | null;
+  // The file's name in s("…") once its folder is loaded with samples('./folder').
+  soundName: string | null;
+  // The clip's code line was just copied (for a moment, as feedback), or why it wasn't.
+  copied: boolean;
+  copyError: string | null;
 }
 
 export const useWaveform = create<WaveformState>(() => ({
@@ -62,6 +69,9 @@ export const useWaveform = create<WaveformState>(() => ({
   cursor: 0,
   loop: false,
   playing: null,
+  soundName: null,
+  copied: false,
+  copyError: null,
 }));
 
 const set = useWaveform.setState;
@@ -113,7 +123,8 @@ async function loadSample(path: string): Promise<void> {
   buffer = null;
   channels = [];
   blocks = null;
-  set({ path, status: "loading", error: null, info: null, playing: null });
+  set({ path, status: "loading", error: null, info: null, playing: null, soundName: null, copied: false, copyError: null });
+  void lookUpSoundName(path, token);
   try {
     const response = await fetch(assetUrl(path));
     if (!response.ok) throw new Error(`could not read it (${response.status})`);
@@ -142,6 +153,20 @@ async function loadSample(path: string): Promise<void> {
     const reason = err instanceof Error ? err.message : String(err);
     set({ status: "error", error: `Could not open ${baseName(path)}: ${reason}` });
   }
+}
+
+// The name samples('./folder') gives the file: scanned like the explorer's drag-to-insert,
+// so a clash with another file of the same name gets its _2 here too. Without a scan
+// (the folder can't be read), the plain sound name of the file name.
+async function lookUpSoundName(path: string, token: number): Promise<void> {
+  let name = soundName(stem(path));
+  try {
+    const folder = await scanSampleFolder(dirName(path), ".");
+    name = soundsInFolder(folder).find((sound) => samePath(sound.source, path))?.name ?? name;
+  } catch {
+    // Keep the plain name.
+  }
+  if (token === loadToken) set({ soundName: name });
 }
 
 const pick = ({ view, selection, cursor }: WaveformState): Remembered => ({ view, selection, cursor });
@@ -233,23 +258,47 @@ export function toggleLoop(): void {
 export function playFrom(time: number): void {
   const info = get().info;
   if (!info) return;
-  set({ cursor: time, selection: null });
+  set({ cursor: time, selection: null, copied: false, copyError: null });
   void play(time, info.duration);
 }
 
 // The selection while a drag is still going: shown, but nothing restarts yet.
 export function dragSelection(span: Span): void {
-  set({ selection: span });
+  set({ selection: span, copied: false, copyError: null });
 }
 
 // A finished drag. A loop that's playing moves to the new selection.
 export function select(span: Span): void {
-  set({ selection: span, cursor: span.start });
+  set({ selection: span, cursor: span.start, copied: false, copyError: null });
   if (get().playing?.loop) void play(span.start, span.end);
 }
 
 export function clearSelection(): void {
-  set({ selection: null });
+  set({ selection: null, copied: false, copyError: null });
+}
+
+// The line that plays the selection (or the whole file): s("name").begin(…).end(…).
+// A selector: useWaveform(selectClipCode).
+export function selectClipCode({ soundName: name, selection, info }: WaveformState): string | null {
+  return name && info ? clipCode(name, selection, info.duration) : null;
+}
+
+const COPIED_MS = 1500;
+let copiedTimer: ReturnType<typeof setTimeout> | undefined;
+
+// Copies the clip's line, to paste into the code by hand.
+export async function copyClipCode(): Promise<void> {
+  const code = selectClipCode(get());
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+  } catch (err) {
+    set({ copied: false, copyError: `Could not copy: ${String(err)}` });
+    return;
+  }
+  set({ copied: true, copyError: null });
+  clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => set({ copied: false }), COPIED_MS);
 }
 
 const ZOOM_STEP = 0.5;
@@ -262,4 +311,5 @@ export const SAMPLE_COMMANDS: Command[] = [
   { id: "sample.zoomIn", label: "Zoom In", run: () => zoomBy(ZOOM_STEP) },
   { id: "sample.zoomOut", label: "Zoom Out", run: () => zoomBy(1 / ZOOM_STEP) },
   { id: "sample.zoomFit", label: "Zoom to Fit", run: zoomFit },
+  { id: "sample.copyCode", label: "Copy Clip Code", run: () => void copyClipCode() },
 ];

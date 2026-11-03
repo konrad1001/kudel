@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent as ReactM
 import * as engine from "../engine";
 import { getCommand } from "../commands/commands";
 import { useKeyFor, withKey } from "../commands/keybindings";
-import { baseName } from "../files/paths";
+import { baseName, dirName } from "../files/paths";
 import { drawOverlay, drawWave } from "../waveform/draw";
 import {
   infoText,
@@ -19,6 +19,7 @@ import {
   playFrom,
   sampleData,
   select,
+  selectClipCode,
   setView,
   toggleLoop,
   togglePlay,
@@ -39,6 +40,7 @@ export function Sample() {
         <>
           <Wave />
           <ScrollBar />
+          <CodeLine />
         </>
       ) : (
         <Message />
@@ -237,6 +239,36 @@ function Wave() {
     <div className="sample-wave" ref={boxRef} onMouseDown={onMouseDown}>
       <canvas ref={waveRef} />
       <canvas ref={overlayRef} />
+    </div>
+  );
+}
+
+// The line that plays the selection, to copy into the code by hand: the field can be
+// selected from, and [copy] (Ctrl+C while the view has focus) takes all of it. The app
+// never writes it into the code itself.
+function CodeLine() {
+  const path = useWaveform((s) => s.path);
+  const code = useWaveform(selectClipCode);
+  const copied = useWaveform((s) => s.copied);
+  const copyError = useWaveform((s) => s.copyError);
+  const folder = path ? baseName(dirName(path)) : "its folder";
+  return (
+    <div className="sample-code">
+      <span className="import-label">code</span>
+      <input
+        className="keys-buffer-text sample-code-text"
+        readOnly
+        spellCheck={false}
+        title={`Plays once the code loads ${folder} with samples('./…')`}
+        value={code ?? "…"}
+        style={{ width: `${Math.max((code ?? "…").length, 3) + 1}ch` }}
+      />
+      <CommandButton command="sample.copyCode">{copied ? "copied" : "copy"}</CommandButton>
+      {copyError && (
+        <span className="import-error" title={copyError}>
+          {copyError}
+        </span>
+      )}
     </div>
   );
 }

@@ -1560,6 +1560,28 @@ body {
   opacity: 0.6;
 }
 
+/* The selection's line of code, selectable for copying. */
+.sample-code {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Never squeezed by a message beside it; the message gives way instead. */
+.sample-code-text {
+  flex: none;
+  max-width: 100%;
+}
+
+.sample-code .import-error {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ================================================================ */
 /* == Aside                                                         */
 /* ================================================================ */

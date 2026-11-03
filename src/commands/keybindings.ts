@@ -60,6 +60,7 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "=", command: "sample.zoomIn", when: "sampleFocus" },
   { key: "-", command: "sample.zoomOut", when: "sampleFocus" },
   { key: "0", command: "sample.zoomFit", when: "sampleFocus" },
+  { key: "Ctrl+C", command: "sample.copyCode", when: "sampleFocus" },
   { key: "Escape", command: "view.focusEditor", when: "panelFocus" },
   // Not from the reference's search box, which handles its own Escape (clear, then leave).
   { key: "Escape", command: "view.focusEditor", when: "asideFocus && !inputFocus" },
