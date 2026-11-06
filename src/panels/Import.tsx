@@ -1,5 +1,5 @@
 import { useEffect, type KeyboardEvent } from "react";
-import { revealPath, useExplorer } from "../files/explorerStore";
+import { useExplorer } from "../files/explorerStore";
 import { baseName, samePath } from "../files/paths";
 import {
   bytesText,
@@ -190,9 +190,6 @@ function JobDetail({ job }: { job: ImportJob }) {
             }}
           >
             {previewing ? "[stop]" : "[play]"}
-          </button>
-          <button type="button" className="ascii-button" onClick={() => void revealPath(path)}>
-            [reveal]
           </button>
           <button type="button" className="ascii-button" title="Open in the Sample view" onClick={() => openSample(path, { focus: true })}>
             [edit]

@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { isTextField, registerContextKey } from "../commands/when";
 import { showView } from "../layout/layoutStore";
 import { allowAssetFolder, listDir, type DirEntry } from "./native";
-import { dirName, isWithin, movedPath, samePath } from "./paths";
+import { dirName, isWithin, movedPath } from "./paths";
 
 // The explorer sidebar: the open folder and how it is expanded. UI-only state.
 interface ExplorerState {
@@ -126,22 +126,6 @@ async function expandDir(dir: string): Promise<void> {
     const { [dir]: _failed, ...rest } = get().expanded;
     set({ expanded: rest });
   }
-}
-
-// Expands the folders down to `path` and shows the explorer, so the file is in view.
-export async function revealPath(path: string): Promise<void> {
-  const { root } = get();
-  if (!root) return;
-  const dirs: string[] = [];
-  for (let dir = dirName(path); !samePath(dir, root); dir = dirName(dir)) {
-    // Reached a drive root: the file isn't in the open folder.
-    if (dirName(dir) === dir) return;
-    dirs.unshift(dir);
-  }
-  for (const dir of dirs) {
-    if (!get().expanded[dir]) await expandDir(dir);
-  }
-  showView("explorer");
 }
 
 export function selectFile(parentDir: string, path?: string): void {
