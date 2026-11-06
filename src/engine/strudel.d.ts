@@ -87,6 +87,9 @@ declare module "@strudel/webaudio" {
     cycle?: number,
   ): Promise<void>;
   export function registerSynthSounds(): void;
+  // Registers a wavetable sound (wavetable.mjs): `tables` are .wav URLs (n picks one),
+  // each cut into params.frameLen-sample frames; the rest of params goes into its data.
+  export function registerWaveTable(key: string, tables: string[], params?: Record<string, unknown>): void;
   export function registerZZFXSounds(): void;
   // With a single string argument: the URL of a JSON map of bank aliases.
   export function aliasBank(path: string): Promise<void>;

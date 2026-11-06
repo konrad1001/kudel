@@ -6,21 +6,19 @@ use tauri::{AppHandle, Manager};
 
 use super::files::write_atomic;
 
-// What was open when the app last closed (folder, tabs, unsaved text, recents), as
-// JSON the front end writes and reads. Lives in the app data directory
-// (%APPDATA%\dev.konrad.strudel-studio\session.json), never next to the user's files.
-fn session_path(app: &AppHandle) -> Result<PathBuf, String> {
+// A file of the app's own in the app data directory
+// (%APPDATA%\dev.konrad.strudel-studio\<name>), never next to the user's files.
+fn app_file(app: &AppHandle, name: &str) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()
         .map_err(|err| format!("No app data folder: {err}"))?;
-    Ok(dir.join("session.json"))
+    Ok(dir.join(name))
 }
 
-// None on first run (no session yet).
-#[tauri::command]
-pub async fn load_session(app: AppHandle) -> Result<Option<String>, String> {
-    let path = session_path(&app)?;
+// None if the file isn't there yet (first run).
+fn read_app_file(app: &AppHandle, name: &str) -> Result<Option<String>, String> {
+    let path = app_file(app, name)?;
     match fs::read_to_string(&path) {
         Ok(text) => Ok(Some(text)),
         Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -28,11 +26,34 @@ pub async fn load_session(app: AppHandle) -> Result<Option<String>, String> {
     }
 }
 
-#[tauri::command]
-pub async fn save_session(app: AppHandle, contents: String) -> Result<(), String> {
-    let path = session_path(&app)?;
+fn write_app_file(app: &AppHandle, name: &str, contents: &str) -> Result<(), String> {
+    let path = app_file(app, name)?;
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir).map_err(|err| format!("Could not create {}: {err}", dir.display()))?;
     }
-    write_atomic(&path, &contents).map_err(|err| format!("Could not write {}: {err}", path.display()))
+    write_atomic(&path, contents).map_err(|err| format!("Could not write {}: {err}", path.display()))
+}
+
+// What was open when the app last closed (folder, tabs, unsaved text, recents), as
+// JSON the front end writes and reads.
+#[tauri::command]
+pub async fn load_session(app: AppHandle) -> Result<Option<String>, String> {
+    read_app_file(&app, "session.json")
+}
+
+#[tauri::command]
+pub async fn save_session(app: AppHandle, contents: String) -> Result<(), String> {
+    write_app_file(&app, "session.json", &contents)
+}
+
+// The Synth view's patch being edited and its saved sounds, as JSON. Kept for the app,
+// not per project.
+#[tauri::command]
+pub async fn load_synths(app: AppHandle) -> Result<Option<String>, String> {
+    read_app_file(&app, "synths.json")
+}
+
+#[tauri::command]
+pub async fn save_synths(app: AppHandle, contents: String) -> Result<(), String> {
+    write_app_file(&app, "synths.json", &contents)
 }

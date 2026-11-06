@@ -79,6 +79,14 @@ src/
                the playhead, .wav headers (pure, tested), the canvas drawing, and its
                store. Decoded audio stays outside the store; playing a file is an
                audition through engine.playBuffer, never part of the pattern
+  synth/       the Synth view's logic: one oscillator's settings as Strudel controls,
+               which are written, the patch's code (const name = {...}, used as
+               .set(name)) and synths.json parsing (pure, tested), what its displays draw
+               (one wave cycle with superdough's warps, the filter response, envelopes;
+               pure, tested), the canvas drawing, and its store. The
+               patch and saved sounds live in %APPDATA%\<app-id>\synths.json, not per
+               project. Playing it is an audition through engine.auditionControls with
+               exactly the object the code gets; it reaches the code by copy or drag
   panels/      UI panels (menu bar, sidebar, bottom panel, explorer, keys, ...)
   settings/    settings schema, defaults, zustand store
   commands/    the command registry (id, label, run), keybindings (key, command id,
@@ -111,8 +119,9 @@ Pin **exact** versions of every `@strudel/*` package and `superdough` in `packag
 - **Stopping only stops the scheduler.** Notes already handed to superdough (scheduled ahead, long samples, release, reverb and delay tails) play out. On stop the engine's `cutSound` gives superdough's audio controller a fresh output and orbits, then fades the old ones out over 30ms and disconnects them. That reaches into `SuperdoughAudioController` internals (`nodes`, `buses`, `output.initializeAudio`), so re-check it when upgrading superdough.
 - **Trackpad pinch needs WebView2's zoom on.** Tauri's default (`zoomHotkeysEnabled: false`) makes wry turn off WebView2's zoom control and pinch zoom, and then a touchpad pinch never reaches the page. `tauri.conf.json` turns it on so a pinch arrives as wheel events with `ctrlKey`, and `src/pageZoom.ts` prevents the default of every ctrl+wheel and Ctrl+= / Ctrl+- / Ctrl+0, so the app itself never zooms. Views that want a pinch (the Sample view) read those wheel events.
 - **yt-dlp and ffmpeg come from PATH** (`winget install yt-dlp.yt-dlp` also installs `yt-dlp.FFmpeg` and deno, which yt-dlp uses for YouTube's JS challenges), as the app saw PATH when it started: after installing, start `npm run tauri dev` from a new terminal. `import.rs` starts them with `CREATE_NO_WINDOW` and cancels with `taskkill /T`, because yt-dlp's Windows build runs as two processes and starts ffmpeg as a third. Clips are cut by ffmpeg during the wav conversion (`--postprocessor-args "ExtractAudio:-ss … -to …"`), not with `--download-sections`: that cuts at the stream's blocks (seconds early) unless `--force-keyframes-at-cuts`, which re-encodes to low-bitrate opus first. The progress template's `progress.*` field names aren't in yt-dlp's README; if one changes it prints `NA` and the Import view shows no bar, but imports still work.
+- **Objects passed to `.set()` need main control names and single quotes.** Aliases (`lpf`, `lpq`, `size`, `fm`) are only resolved by the control methods, so a plain object must say `cutoff`, `resonance`, `roomsize`, `fmi` (see `registerControl` in core `controls.mjs`). Double-quoted strings are transpiled into mini-notation patterns, so string values in an object are single-quoted (`s: 'sawtooth'`).
 - **Asset protocol scope.** Local files are only reachable via `convertFileSrc` if their path is inside the configured `assetProtocol.scope`.
-- **Default sounds mirror strudel.cc**, so code behaves the same here as on the site. `src/engine/soundSources.ts` copies the sample banks from strudel.cc's `website/src/repl/prebake.mjs` (not published to npm; read it at the git tag matching our versions), and `src/engine/piano.ts` reproduces its `.piano()`. Re-sync both when upgrading Strudel. They load from the network (`strudel.b-cdn.net`, `felixroos.github.io` for GM soundfonts), so the app isn't offline-capable until local samples are added.
+- **Default sounds mirror strudel.cc**, so code behaves the same here as on the site. `src/engine/soundSources.ts` copies the sample banks from strudel.cc's `website/src/repl/prebake.mjs` (not published to npm; read it at the git tag matching our versions), and `src/engine/piano.ts` reproduces its `.piano()`. Re-sync both when upgrading Strudel. They load from the network (`strudel.b-cdn.net`, `felixroos.github.io` for GM soundfonts), so the app isn't offline-capable until local samples are added. One exception that strudel.cc doesn't have: `wt_basic_shapes`, a sine → triangle → saw → square wavetable the app generates (`src/synth/basicShapes.ts`) and registers at startup from a `blob:` URL (which is why `connect-src` allows `blob:`). Code using it plays here only.
 
 ## Verifying work
 

@@ -27,7 +27,7 @@
         "default-src": "'self'",
         "script-src": "'self' 'unsafe-eval' data:",
         "style-src": "'self' 'unsafe-inline'",
-        "connect-src": "'self' ipc: http://ipc.localhost asset: http://asset.localhost https://strudel.b-cdn.net https://felixroos.github.io https://raw.githubusercontent.com",
+        "connect-src": "'self' blob: ipc: http://ipc.localhost asset: http://asset.localhost https://strudel.b-cdn.net https://felixroos.github.io https://raw.githubusercontent.com",
         "media-src": "'self' asset: http://asset.localhost",
         "img-src": "'self' data:"
       },
@@ -35,7 +35,7 @@
         "default-src": "'self'",
         "script-src": "'self' 'unsafe-eval' 'unsafe-inline' data:",
         "style-src": "'self' 'unsafe-inline'",
-        "connect-src": "'self' ipc: http://ipc.localhost ws://localhost:1420 asset: http://asset.localhost https://strudel.b-cdn.net https://felixroos.github.io https://raw.githubusercontent.com",
+        "connect-src": "'self' blob: ipc: http://ipc.localhost ws://localhost:1420 asset: http://asset.localhost https://strudel.b-cdn.net https://felixroos.github.io https://raw.githubusercontent.com",
         "media-src": "'self' asset: http://asset.localhost",
         "img-src": "'self' data:"
       },

@@ -151,6 +151,15 @@ export function saveSession(contents: string): Promise<void> {
   return invoke("save_session", { contents });
 }
 
+// The Synth view's file (synths.json) in the app data folder; null on first run.
+export function loadSynths(): Promise<string | null> {
+  return invoke("load_synths");
+}
+
+export function saveSynths(contents: string): Promise<void> {
+  return invoke("save_synths", { contents });
+}
+
 // Runs `beforeClose` when the window is asked to close; the window then closes
 // unless it resolved false. Returns a function that stops listening.
 export function onWindowClose(beforeClose: () => Promise<boolean>): () => void {

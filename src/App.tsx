@@ -25,6 +25,7 @@ import { Reference } from "./panels/Reference";
 import { Sample, SampleTitle } from "./panels/Sample";
 import { Sidebar } from "./panels/Sidebar";
 import { Sounds } from "./panels/Sounds";
+import { Synth } from "./panels/Synth";
 import { StatusBar } from "./panels/StatusBar";
 import { TabBar } from "./panels/TabBar";
 import { useNoPageZoom } from "./pageZoom";
@@ -34,12 +35,17 @@ import { PREVIEW_COMMANDS } from "./samples/preview";
 import { resolveLocalSamples } from "./samples/resolve";
 import { SOUNDS_COMMANDS } from "./sounds/soundsStore";
 import { STATUS_COMMANDS } from "./status/statusStore";
+import { BASIC_SHAPES_TABLE, basicShapesWav, FRAME_LEN } from "./synth/basicShapes";
+import { persistSynths, restoreSynthsOnce, SYNTH_COMMANDS } from "./synth/synthStore";
 import { persistSession, restoreSessionOnce } from "./session/persist";
 import { SAMPLE_COMMANDS } from "./waveform/waveformStore";
 import "./App.css";
 
 // samples("./drums") in code loads that folder, relative to the file being evaluated.
 engine.setLocalSampleResolver(resolveLocalSamples);
+
+// The Synth view's "Basic Shapes" wavetable, playable as s("wt_basic_shapes") in any code.
+if (!engine.isSoundRegistered(BASIC_SHAPES_TABLE)) engine.registerWavetable(BASIC_SHAPES_TABLE, basicShapesWav(), FRAME_LEN);
 
 registerCommands([
   ...FILE_COMMANDS,
@@ -51,6 +57,7 @@ registerCommands([
   ...KEYS_COMMANDS,
   ...IMPORT_COMMANDS,
   ...SAMPLE_COMMANDS,
+  ...SYNTH_COMMANDS,
   ...SOUNDS_COMMANDS,
   ...REFERENCE_COMMANDS,
   ...STATUS_COMMANDS,
@@ -62,6 +69,7 @@ registerViews([
   { id: "explorer", title: "Explorer", region: "sidebar", component: Explorer },
   { id: "sounds", title: "Sounds", region: "sidebar", component: Sounds },
   { id: "keys", title: "Keys", region: "panel", component: Keys },
+  { id: "synth", title: "Synth", region: "panel", component: Synth },
   { id: "import", title: "Import", region: "panel", component: Import },
   { id: "sample", title: "Sample", region: "panel", component: Sample, Title: SampleTitle },
   { id: "reference", title: "Reference", region: "aside", component: Reference },
@@ -80,7 +88,7 @@ const MENUS: Menu[] = [
     label: "View",
     groups: [
       ["view.toggleSidebar", "view.togglePanel", "view.toggleAside", "view.toggleMaximised"],
-      ["view.sounds", "view.keys", "view.import", "view.sample", "view.reference", "reference.lookUp"],
+      ["view.sounds", "view.keys", "view.synth", "view.import", "view.sample", "view.reference", "reference.lookUp"],
       ["editor.next", "editor.previous"],
     ],
   },
@@ -104,6 +112,19 @@ function App() {
     let stop: (() => void) | undefined;
     void restoreSessionOnce().then(() => {
       if (live) stop = persistSession();
+    });
+    return () => {
+      live = false;
+      stop?.();
+    };
+  }, []);
+
+  // The Synth view's patch and saved sounds, the same way (synths.json).
+  useEffect(() => {
+    let live = true;
+    let stop: (() => void) | undefined;
+    void restoreSynthsOnce().then((ok) => {
+      if (live && ok) stop = persistSynths();
     });
     return () => {
       live = false;

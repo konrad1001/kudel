@@ -8,6 +8,7 @@ import { decodeFile } from "../files/text";
 import { setImportDir, useImport } from "../importer/importStore";
 import { useKeys } from "../keys/keysStore";
 import { useLayout } from "../layout/layoutStore";
+import { flushSynths } from "../synth/synthStore";
 import { parseSession, restoreTab, serializeSession, type Session } from "./session";
 
 // Saving shortly after changes means a crash or a killed process loses at most this much.
@@ -106,6 +107,8 @@ export function persistSession(): () => void {
     engine.onCodeChange(schedule),
     onWindowClose(async () => {
       clearTimeout(timer);
+      // The Synth view's file has no close handler of its own: two would race to close.
+      await flushSynths().catch((err) => console.error("Could not save the synths", err));
       try {
         await save();
         return true;

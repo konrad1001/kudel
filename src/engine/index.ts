@@ -504,14 +504,14 @@ export interface Audition {
 // Scheduling a moment ahead, so the first note isn't "in the past" by the time it starts.
 const AUDITION_LATENCY = 0.01;
 
-// Wavetables already loaded by loadSoundFor.
+// Wavetables already loaded by loadSoundFor, as "sound:n" (n picks the table).
 const loadedTables = new Set<string>();
 
 // Loads whatever file a sound needs for `value` (a sample, a soundfont zone or a
 // wavetable), so superdough finds it cached. Its own loading happens after the start
 // time is fixed, and a note whose file arrives late is skipped. Other sounds need
 // nothing loaded; an unknown one is left for superdough to report.
-async function loadSoundFor(value: { note?: string; s: string }): Promise<void> {
+async function loadSoundFor(value: { note?: string; s: string; n?: unknown }): Promise<void> {
   const sound = webaudio.getSound(value.s);
   const data = sound?.data;
   if (data?.type === "sample") await webaudio.getSampleBuffer(value, data.samples);
@@ -522,9 +522,10 @@ async function loadSoundFor(value: { note?: string; s: string }): Promise<void> 
   // superdough's wavetable loader isn't exported. Triggering the sound at a time already
   // past loads the table and caches it (here and in the worklet), then returns silently.
   // That leaves one unused oscillator node per table.
-  if (sound && data?.type === "wavetable" && !loadedTables.has(value.s)) {
+  const table = `${value.s}:${String(value.n ?? 0)}`;
+  if (sound && data?.type === "wavetable" && !loadedTables.has(table)) {
     await sound.onTrigger(0, { ...value, duration: 0 }, () => {});
-    loadedTables.add(value.s);
+    loadedTables.add(table);
   }
 }
 
@@ -542,6 +543,88 @@ export async function auditionNote({ note, s, duration, release = 0.1 }: Auditio
   await loadSoundFor(value);
   const now = webaudio.getAudioContext().currentTime;
   await webaudio.superdough({ ...value, clip: 1, release }, now + AUDITION_LATENCY, duration);
+}
+
+export interface ControlsAudition {
+  // Strudel controls by their main names, as note("…").set(controls) would play them.
+  // Must include s.
+  controls: Record<string, number | string | number[]> & { s: string };
+  // Mini-notation note name, e.g. "c3".
+  note: string;
+  // Seconds the note is held; its release follows.
+  duration: number;
+}
+
+// Plays one note with exactly these controls (the Synth view's patch), the way a hap
+// with them would play: nothing added, so the patch's own envelope and effects are
+// heard. Like auditionNote it's outside the scheduler, and the start time is taken
+// once the sound is loaded. The tempo is the scheduler's, for delaysync and the like.
+export async function auditionControls({ controls, note, duration }: ControlsAudition): Promise<void> {
+  if (!mirror) return;
+  await mirror.prebaked;
+  await ensureAudio();
+  const value = { ...controls, note };
+  await loadSoundFor(value);
+  const now = webaudio.getAudioContext().currentTime;
+  await webaudio.superdough(value, now + CONTROLS_AUDITION_LATENCY, duration, mirror.repl.scheduler.cps);
+}
+
+// More headroom than a key press needs: the first note of a just-loaded wavetable took
+// longer than AUDITION_LATENCY to set up and was skipped ("skip hap: still loading").
+const CONTROLS_AUDITION_LATENCY = 0.05;
+
+// The sample rate in a .wav file's "fmt " chunk, or null.
+function wavSampleRate(bytes: ArrayBuffer): number | null {
+  const view = new DataView(bytes);
+  for (let p = 12; p + 16 <= view.byteLength; ) {
+    const id = String.fromCharCode(view.getUint8(p), view.getUint8(p + 1), view.getUint8(p + 2), view.getUint8(p + 3));
+    const size = view.getUint32(p + 4, true);
+    if (id === "fmt ") return view.getUint32(p + 12, true);
+    p += 8 + size + (size & 1);
+  }
+  return null;
+}
+
+// Whether a sound of this name is registered.
+export function isSoundRegistered(name: string): boolean {
+  return !!webaudio.getSound(name);
+}
+
+// Registers a wavetable the app made itself (a .wav of frameLen-sample frames) as a
+// sound, so s("name") plays it like the downloaded ones. It's served from a blob: URL,
+// which superdough fetches (connect-src allows blob:).
+export function registerWavetable(name: string, wav: Uint8Array, frameLen: number): void {
+  const url = URL.createObjectURL(new Blob([wav as BlobPart], { type: "audio/wav" }));
+  webaudio.registerWaveTable(name.toLowerCase(), [url], { frameLen, prebake: true });
+}
+
+const frameCache = new Map<string, Promise<Float32Array[]>>();
+
+// The frames (single cycles) of the table a wavetable sound plays for `n`, for drawing.
+// Split the way superdough's wavetable loader does: the file decoded at its own rate,
+// cut into frameLen-sample frames. Null for a sound that isn't a wavetable.
+export function wavetableFrames(s: string, n = 0): Promise<Float32Array[]> | null {
+  const sound = webaudio.getSound(s);
+  const tables = sound?.data.tables;
+  if (sound?.data.type !== "wavetable" || !Array.isArray(tables) || tables.length === 0) return null;
+  const index = ((Math.round(n) % tables.length) + tables.length) % tables.length;
+  const url = String(tables[index]).replace("#", "%23");
+  const frameLen = typeof sound.data.frameLen === "number" ? sound.data.frameLen : 2048;
+  const key = `${url},${frameLen}`;
+  let frames = frameCache.get(key);
+  if (!frames) {
+    frames = fetch(url)
+      .then((res) => res.arrayBuffer())
+      .then((bytes) => new OfflineAudioContext(1, 1, wavSampleRate(bytes) ?? 44100).decodeAudioData(bytes))
+      .then((buffer) => {
+        const data = buffer.getChannelData(0);
+        const count = Math.max(1, Math.floor(data.length / frameLen));
+        return Array.from({ length: count }, (_, i) => data.slice(i * frameLen, (i + 1) * frameLen));
+      });
+    frames.catch(() => frameCache.delete(key));
+    frameCache.set(key, frames);
+  }
+  return frames;
 }
 
 // Decodes an audio file's bytes at the shared audio context's rate. The bytes are
