@@ -16,6 +16,7 @@
    == Panel              the region under the editor
    == Keys               the panel's keyboard
    == Synth              the panel's sound designer
+   == Drums              the panel's step sequencer
    == Aside              the region right of the editor
    == Reference          the aside's Strudel API reference
    == Scrollbars
@@ -2042,13 +2043,19 @@ body {
   text-align: center;
 }
 
-.synth-saved-list {
+.saved-empty {
+  padding: 2px 4px;
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.saved-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.synth-saved-item {
+.saved-item {
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -2056,16 +2063,16 @@ body {
   cursor: grab;
 }
 
-.synth-saved-item:hover {
+.saved-item:hover {
   background-color: var(--selection, #ffffff26);
 }
 
-.synth-saved-item.current {
+.saved-item.current {
   color: var(--background, #0c0c0c);
   background-color: var(--foreground, #cccccc);
 }
 
-.synth-saved-name {
+.saved-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -2073,12 +2080,189 @@ body {
   white-space: nowrap;
 }
 
-.synth-remove {
+.saved-remove {
   opacity: 0;
 }
 
-.synth-saved-item:hover .synth-remove {
+.saved-item:hover .saved-remove {
   opacity: 0.6;
+}
+
+/* ================================================================ */
+/* == Drums                                                         */
+/* ================================================================ */
+
+/* A toolbar over the saved loops and the step grid, which fills the panel: rows share
+   its height, steps share its width. The Synth view's inputs, chips and titles are
+   reused. */
+.drums {
+  --drums-on: #ff9e40;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 6px;
+  outline: none;
+}
+
+.drums-toolbar {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
+.drums-mark {
+  width: 8px;
+  height: 8px;
+  align-self: center;
+  background-color: var(--drums-on);
+}
+
+.drums-field {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10px;
+}
+
+.drums-bank {
+  max-width: 16ch;
+}
+
+.drums-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.drums-saved {
+  flex: 0 0 14ch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 0 12px;
+  overflow-y: auto;
+}
+
+.drums-grid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 12px 0 10px;
+  border-left: 1px solid var(--gutterForeground, #3c3c3c);
+  overflow-y: auto;
+}
+
+/* A sound's name, 16 steps, then its buttons. Step rows grow to share the height. */
+.drums-row {
+  flex: 1 1 0;
+  min-height: 16px;
+  max-height: 34px;
+  display: grid;
+  grid-template-columns: 14ch repeat(16, minmax(0, 1fr)) 5ch;
+  gap: 3px;
+  align-items: stretch;
+}
+
+.drums-numbers,
+.drums-add {
+  flex: none;
+  min-height: 0;
+  align-items: center;
+}
+
+.drums-add {
+  display: flex;
+  gap: 8px;
+}
+
+.drums-number {
+  font-size: 9px;
+  text-align: center;
+  opacity: 0.3;
+}
+
+.drums-number.beat {
+  opacity: 0.7;
+}
+
+.drums-sound {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.drums-hear {
+  flex: none;
+  width: 1.5ch;
+}
+
+.drums-sound-input {
+  flex: 1;
+  width: 100%;
+}
+
+.drums-sound-input.invalid {
+  color: #f14c4c;
+}
+
+.drums-sound-input.missing {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.drums-row-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.drums-row-end .ascii-button {
+  opacity: 0;
+}
+
+.drums-row:hover .drums-row-end .ascii-button {
+  opacity: 0.6;
+}
+
+/* A step: a dim block, the first of each beat a little brighter, filled when on. */
+.drums-step {
+  background-color: color-mix(in srgb, var(--foreground, #cccccc) 8%, transparent);
+  border: 1px solid transparent;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.drums-step.beat {
+  background-color: color-mix(in srgb, var(--foreground, #cccccc) 15%, transparent);
+}
+
+.drums-step:hover {
+  border-color: var(--foreground, #cccccc);
+}
+
+.drums-step.on {
+  background-color: var(--drums-on);
+}
+
+/* The column the preview is sounding. */
+.drums-step.playhead {
+  outline: 1px solid var(--foreground, #cccccc);
+  outline-offset: -1px;
+}
+
+.drums-step.on.playhead {
+  background-color: color-mix(in srgb, var(--drums-on) 60%, white);
 }
 
 /* ================================================================ */

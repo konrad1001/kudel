@@ -66,6 +66,8 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+C", command: "sample.copyCode", when: "sampleFocus" },
   { key: "Space", command: "synth.play", when: "synthFocus" },
   { key: "Ctrl+C", command: "synth.copy", when: "synthFocus" },
+  { key: "Space", command: "drums.playStop", when: "drumsFocus" },
+  { key: "Ctrl+C", command: "drums.copy", when: "drumsFocus" },
   { key: "Escape", command: "view.focusEditor", when: "panelFocus" },
   // Not from the reference's search box, which handles its own Escape (clear, then leave).
   { key: "Escape", command: "view.focusEditor", when: "asideFocus && !inputFocus" },

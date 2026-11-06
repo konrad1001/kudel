@@ -495,6 +495,8 @@ export interface Audition {
   note?: string;
   // Any registered sound or sample, as in s("…").
   s: string;
+  // Which of a sample's files ("bd:3" is s "bd", n 3). Without one, the first.
+  n?: number;
   // Seconds.
   duration: number;
   // Seconds the sound fades out after `duration`. Defaults to 0.1.
@@ -535,11 +537,11 @@ async function loadSoundFor(value: { note?: string; s: string; n?: unknown }): P
 // The start time is taken once the sound is loaded, so a first press plays late rather
 // than not at all. Rejects for an unknown sound; called from a key press or click, so
 // audio may start.
-export async function auditionNote({ note, s, duration, release = 0.1 }: Audition): Promise<void> {
+export async function auditionNote({ note, s, n, duration, release = 0.1 }: Audition): Promise<void> {
   if (!mirror) return;
   await mirror.prebaked;
   await ensureAudio();
-  const value = note === undefined ? { s } : { note, s };
+  const value = { s, ...(note !== undefined && { note }), ...(n !== undefined && { n }) };
   await loadSoundFor(value);
   const now = webaudio.getAudioContext().currentTime;
   await webaudio.superdough({ ...value, clip: 1, release }, now + AUDITION_LATENCY, duration);
@@ -572,6 +574,92 @@ export async function auditionControls({ controls, note, duration }: ControlsAud
 // More headroom than a key press needs: the first note of a just-loaded wavetable took
 // longer than AUDITION_LATENCY to set up and was skipped ("skip hap: still loading").
 const CONTROLS_AUDITION_LATENCY = 0.05;
+
+export interface LoopAudition {
+  // Steps to a cycle; the loop lasts a cycle at the scheduler's tempo.
+  steps: number;
+  // What step `step` plays now: hap values ({ s, n, bank, ... }). Read as each step is
+  // scheduled, so changes to the loop are heard on its next pass.
+  valuesAt(step: number): Record<string, unknown>[];
+  // Called as each step sounds (for a playhead).
+  onStep?(step: number): void;
+  // Called once per sound that can't be played (an unknown sound, say).
+  onError?(message: string): void;
+}
+
+// How far ahead the loop schedules, and how often it looks.
+const LOOP_LOOKAHEAD = 0.12;
+const LOOP_TICK_MS = 25;
+
+// A bank's sound under the name superdough registers it ("rolandtr909" + "bd" →
+// "rolandtr909_bd"), so it can be loaded before it plays; superdough does the same.
+function withBank(value: Record<string, unknown>): Record<string, unknown> & { s: string } {
+  const { bank, ...rest } = value;
+  const s = String(value.s);
+  return { ...rest, s: bank ? `${String(bank)}_${s}` : s };
+}
+
+// Plays a loop of steps through superdough, outside the scheduler (the Drums view's
+// preview): it never changes what the pattern plays. Times come from the audio clock,
+// looked at every 25ms and scheduled 120ms ahead. Every sound the loop uses now is loaded
+// first; one added later loads as it's first met and is heard from its next pass.
+// Resolves to a function that stops it (sounds already scheduled play out).
+export async function playLoop({ steps, valuesAt, onStep, onError }: LoopAudition): Promise<() => void> {
+  if (!mirror) return () => {};
+  const repl = mirror.repl;
+  await mirror.prebaked;
+  await ensureAudio();
+  const loaded = new Set<string>();
+  const failed = new Set<string>();
+  const keyOf = (value: { s: string; n?: unknown }) => `${value.s}:${String(value.n ?? 0)}`;
+  const load = (value: Record<string, unknown> & { s: string }) => {
+    const key = keyOf(value);
+    if (loaded.has(key)) return Promise.resolve();
+    loaded.add(key);
+    return loadSoundFor(value).catch(() => {});
+  };
+  const all = Array.from({ length: steps }, (_, step) => valuesAt(step).map(withBank)).flat();
+  await Promise.all(all.map(load));
+
+  const ac = webaudio.getAudioContext();
+  let step = 0;
+  let next = ac.currentTime + CONTROLS_AUDITION_LATENCY;
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  const tick = () => {
+    const cps = repl.scheduler.cps;
+    const stepTime = 1 / (cps * steps);
+    // After a stall (a hidden window), start again from now rather than catching up.
+    if (next < ac.currentTime) next = ac.currentTime + CONTROLS_AUDITION_LATENCY;
+    while (next < ac.currentTime + LOOP_LOOKAHEAD) {
+      for (const value of valuesAt(step).map(withBank)) {
+        void load(value);
+        webaudio.superdough({ ...value }, next, stepTime, cps).catch((err: unknown) => {
+          const key = keyOf(value);
+          if (failed.has(key)) return;
+          failed.add(key);
+          onError?.(err instanceof Error ? err.message : String(err));
+        });
+      }
+      if (onStep) {
+        const shown = step;
+        const timer = setTimeout(() => {
+          timers.delete(timer);
+          onStep(shown);
+        }, Math.max(0, (next - ac.currentTime) * 1000));
+        timers.add(timer);
+      }
+      step = (step + 1) % steps;
+      next += stepTime;
+    }
+  };
+  tick();
+  const interval = setInterval(tick, LOOP_TICK_MS);
+  return () => {
+    clearInterval(interval);
+    timers.forEach(clearTimeout);
+    timers.clear();
+  };
+}
 
 // The sample rate in a .wav file's "fmt " chunk, or null.
 function wavSampleRate(bytes: ArrayBuffer): number | null {

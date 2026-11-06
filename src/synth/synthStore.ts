@@ -2,7 +2,7 @@ import { create } from "zustand";
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
 import { isTextField, registerContextKey } from "../commands/when";
-import { loadSynths, saveSynths } from "../files/native";
+import { appFile } from "../files/appFile";
 import { showView } from "../layout/layoutStore";
 import { getParam, normalize, patchControls, type Settings, type Value } from "./controls";
 import { defaultPatch, parseSynthFile, patchCode, savePatch, serializeSynthFile, shiftOctave, type Patch } from "./patch";
@@ -160,55 +160,20 @@ export function reset(): void {
   set((s) => ({ settings: defaultPatch(s.name).settings, error: null }));
 }
 
-// synths.json is read once per page load (StrictMode and hot reload mount twice).
-// Resolves false if it couldn't be read: then nothing is saved this run, so the file
-// isn't overwritten with an empty list.
-let loading: Promise<boolean> | null = null;
-
-export function restoreSynthsOnce(): Promise<boolean> {
-  loading ??= loadSynths().then(
-    (text) => {
-      const file = parseSynthFile(text);
-      set({ name: file.current.name, settings: file.current.settings, saved: file.saved });
-      return true;
-    },
-    (err: unknown) => {
-      console.error("Could not read the saved synths", err);
-      set({ error: `Could not read the saved sounds: ${String(err)}. Changes won't be saved this run.` });
-      return false;
-    },
-  );
-  return loading;
-}
-
-const SAVE_DELAY_MS = 1000;
-let pending: ReturnType<typeof setTimeout> | undefined;
-
-function writeSynths(): Promise<void> {
-  clearTimeout(pending);
-  pending = undefined;
-  const s = get();
-  return saveSynths(serializeSynthFile({ current: currentPatch(s), saved: s.saved }));
-}
-
-// Writes a change still waiting to be saved; the session calls it as the window closes.
-export function flushSynths(): Promise<void> {
-  return pending === undefined ? Promise.resolve() : writeSynths();
-}
-
-// Saves synths.json a moment after any change to the patch or the saved list. Started
-// only once restoreSynthsOnce has read it. Returns a function that stops.
-export function persistSynths(): () => void {
-  const unsubscribe = useSynth.subscribe((s, prev) => {
-    if (s.name === prev.name && s.settings === prev.settings && s.saved === prev.saved) return;
-    clearTimeout(pending);
-    pending = setTimeout(() => void writeSynths().catch((err) => console.error("Could not save the synths", err)), SAVE_DELAY_MS);
-  });
-  return () => {
-    unsubscribe();
-    void flushSynths().catch((err) => console.error("Could not save the synths", err));
-  };
-}
+// The patch and the saved sounds, kept in synths.json in the app data folder.
+export const synthFile = appFile({
+  name: "synths.json",
+  restore(text) {
+    const file = parseSynthFile(text);
+    set({ name: file.current.name, settings: file.current.settings, saved: file.saved });
+  },
+  onReadError: (error) => set({ error }),
+  serialize: () => serializeSynthFile({ current: currentPatch(), saved: get().saved }),
+  watch: (onChange) =>
+    useSynth.subscribe((s, prev) => {
+      if (s.name !== prev.name || s.settings !== prev.settings || s.saved !== prev.saved) onChange();
+    }),
+});
 
 // Keys for these are in src/commands/keybindings.ts, "when": "synthFocus".
 export const SYNTH_COMMANDS: Command[] = [

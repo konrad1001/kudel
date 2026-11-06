@@ -46,14 +46,37 @@ pub async fn save_session(app: AppHandle, contents: String) -> Result<(), String
     write_app_file(&app, "session.json", &contents)
 }
 
-// The Synth view's patch being edited and its saved sounds, as JSON. Kept for the app,
-// not per project.
-#[tauri::command]
-pub async fn load_synths(app: AppHandle) -> Result<Option<String>, String> {
-    read_app_file(&app, "synths.json")
+// The panels' own files (the Synth view's sounds, the Drums view's loops), as JSON the
+// front end writes and reads. Kept for the app, not per project. Only these names, so
+// the front end can't reach other files through it.
+const APP_DATA_FILES: [&str; 2] = ["synths.json", "drums.json"];
+
+fn app_data_name(name: &str) -> Result<&str, String> {
+    APP_DATA_FILES
+        .iter()
+        .find(|known| **known == name)
+        .copied()
+        .ok_or_else(|| format!("Not an app data file: {name}"))
 }
 
 #[tauri::command]
-pub async fn save_synths(app: AppHandle, contents: String) -> Result<(), String> {
-    write_app_file(&app, "synths.json", &contents)
+pub async fn load_app_data(app: AppHandle, name: String) -> Result<Option<String>, String> {
+    read_app_file(&app, app_data_name(&name)?)
+}
+
+#[tauri::command]
+pub async fn save_app_data(app: AppHandle, name: String, contents: String) -> Result<(), String> {
+    write_app_file(&app, app_data_name(&name)?, &contents)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::app_data_name;
+
+    #[test]
+    fn only_known_files() {
+        assert_eq!(app_data_name("drums.json"), Ok("drums.json"));
+        assert!(app_data_name("session.json").is_err());
+        assert!(app_data_name("../settings.json").is_err());
+    }
 }

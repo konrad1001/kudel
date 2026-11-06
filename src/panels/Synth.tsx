@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type DragEvent, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import * as engine from "../engine";
-import { getCommand } from "../commands/commands";
 import { useKeyFor, withKey } from "../commands/keybindings";
 import { useSounds } from "../sounds/soundsStore";
 import {
@@ -15,7 +14,9 @@ import {
   type ChoiceParam,
   type NumberParam,
 } from "../synth/controls";
-import { identifierFor, isReserved, patchCode, type Patch } from "../synth/patch";
+import { identifierFor, patchCode } from "../synth/patch";
+import { CommandButton, nameWarning } from "./CommandButton";
+import { dragCode, SavedList } from "./SavedList";
 import {
   open,
   play,
@@ -55,13 +56,6 @@ export function Synth() {
   );
 }
 
-// Dragging a patch carries its code as plain text, which CodeMirror inserts where it's
-// dropped, as one undoable change.
-function dragCode(event: DragEvent, patch: Patch) {
-  event.dataTransfer.setData("text/plain", patchCode(patch));
-  event.dataTransfer.effectAllowed = "copy";
-}
-
 // ---------------------------------------------------------------- toolbar
 
 function Toolbar() {
@@ -69,12 +63,7 @@ function Toolbar() {
   const error = useSynth((s) => s.error);
   const copied = useSynth((s) => s.copied);
   const justSaved = useSynth((s) => s.justSaved);
-  const id = identifierFor(name);
-  const warning = isReserved(id)
-    ? `"${id}" is a JavaScript keyword; rename it`
-    : shadows(id)
-      ? `"${id}" hides Strudel's ${id} in code that declares it`
-      : null;
+  const warning = nameWarning(name);
   return (
     <div className="synth-toolbar">
       <span className="synth-mark" />
@@ -107,17 +96,10 @@ function CodeChip() {
   const settings = useSynth((s) => s.settings);
   const patch = { name, settings };
   return (
-    <span className="synth-chip" draggable onDragStart={(event) => dragCode(event, patch)} title={patchCode(patch)}>
+    <span className="synth-chip" draggable onDragStart={(event) => dragCode(event, patchCode(patch))} title={patchCode(patch)}>
       ⠿ .set({identifierFor(name)})
     </span>
   );
-}
-
-// Whether a const of this name would hide something Strudel's code can use (a
-// function or pattern on the global scope, like saw or note).
-function shadows(id: string): boolean {
-  const value = (globalThis as Record<string, unknown>)[id];
-  return value !== undefined && (typeof value === "function" || typeof value === "object");
 }
 
 // Enter in a field hands the keys back to the panel (Space plays).
@@ -142,33 +124,7 @@ function Saved() {
   const name = useSynth((s) => s.name);
   return (
     <Column className="synth-saved" head={<span className="synth-title">saved</span>}>
-      <ul className="synth-saved-list">
-        {saved.map((patch) => (
-          <li
-            key={patch.name}
-            className={patch.name === name ? "synth-saved-item current" : "synth-saved-item"}
-            draggable
-            onDragStart={(event) => dragCode(event, patch)}
-            onClick={() => open(patch.name)}
-            title={`Click to edit, drag into the code\n\n${patchCode(patch)}`}
-          >
-            <span className="synth-saved-name">{patch.name}</span>
-            <button
-              type="button"
-              className="ascii-button synth-remove"
-              aria-label={`Remove ${patch.name}`}
-              title="Remove from saved"
-              onClick={(event) => {
-                event.stopPropagation();
-                remove(patch.name);
-              }}
-            >
-              x
-            </button>
-          </li>
-        ))}
-      </ul>
-      {saved.length === 0 && <div className="synth-dim">[save] keeps a sound here</div>}
+      <SavedList items={saved} current={name} codeFor={patchCode} onOpen={open} onRemove={remove} empty="[save] keeps a sound here" />
     </Column>
   );
 }
@@ -511,22 +467,5 @@ function SoundOptions({ current }: { current: string }) {
         {!known && <option>{current}</option>}
       </optgroup>
     </>
-  );
-}
-
-// A [text] button that runs a command, with the command's label and key as its tooltip.
-function CommandButton({ command, children }: { command: string; children: ReactNode }) {
-  const key = useKeyFor(command);
-  const label = getCommand(command)?.label ?? command;
-  return (
-    <button
-      type="button"
-      className="ascii-button"
-      title={withKey(label, key)}
-      aria-label={label}
-      onClick={() => getCommand(command)?.run()}
-    >
-      [{children}]
-    </button>
   );
 }

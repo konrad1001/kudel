@@ -151,13 +151,16 @@ export function saveSession(contents: string): Promise<void> {
   return invoke("save_session", { contents });
 }
 
-// The Synth view's file (synths.json) in the app data folder; null on first run.
-export function loadSynths(): Promise<string | null> {
-  return invoke("load_synths");
+// A panel's own file in the app data folder (synths.json, drums.json: the names
+// session.rs allows); null on first run.
+export type AppDataFile = "synths.json" | "drums.json";
+
+export function loadAppData(name: AppDataFile): Promise<string | null> {
+  return invoke("load_app_data", { name });
 }
 
-export function saveSynths(contents: string): Promise<void> {
-  return invoke("save_synths", { contents });
+export function saveAppData(name: AppDataFile, contents: string): Promise<void> {
+  return invoke("save_app_data", { name, contents });
 }
 
 // Runs `beforeClose` when the window is asked to close; the window then closes

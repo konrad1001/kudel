@@ -87,6 +87,13 @@ src/
                patch and saved sounds live in %APPDATA%\<app-id>\synths.json, not per
                project. Playing it is an audition through engine.auditionControls with
                exactly the object the code gets; it reaches the code by copy or drag
+  drums/       the Drums view's logic: a 16-step grid with a row per sound, its code
+               (const name = stack(s("…"), …), repeating rows shortened like
+               "[bd ~ ~ ~]*4"), drum machine banks and drums.json parsing (pure, tested),
+               and its store. Its loop preview runs through engine.playLoop, on the audio
+               clock outside the scheduler, never part of the pattern. Saved loops and
+               synths.json share src/files/appFile.ts (read once, saved a second after
+               changes, flushed on close)
   panels/      UI panels (menu bar, sidebar, bottom panel, explorer, keys, ...)
   settings/    settings schema, defaults, zustand store
   commands/    the command registry (id, label, run), keybindings (key, command id,

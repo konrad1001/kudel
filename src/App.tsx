@@ -18,6 +18,7 @@ import { EmptyEditor } from "./panels/EmptyEditor";
 import { ErrorBar } from "./panels/ErrorBar";
 import { Explorer } from "./panels/Explorer";
 import { Import } from "./panels/Import";
+import { Drums } from "./panels/Drums";
 import { Keys } from "./panels/Keys";
 import { MENU_COMMANDS, MenuBar, type Menu } from "./panels/MenuBar";
 import { Panel } from "./panels/Panel";
@@ -36,7 +37,8 @@ import { resolveLocalSamples } from "./samples/resolve";
 import { SOUNDS_COMMANDS } from "./sounds/soundsStore";
 import { STATUS_COMMANDS } from "./status/statusStore";
 import { BASIC_SHAPES_TABLE, basicShapesWav, FRAME_LEN } from "./synth/basicShapes";
-import { persistSynths, restoreSynthsOnce, SYNTH_COMMANDS } from "./synth/synthStore";
+import { synthFile, SYNTH_COMMANDS } from "./synth/synthStore";
+import { DRUMS_COMMANDS, drumsFile } from "./drums/drumsStore";
 import { persistSession, restoreSessionOnce } from "./session/persist";
 import { SAMPLE_COMMANDS } from "./waveform/waveformStore";
 import "./App.css";
@@ -58,6 +60,7 @@ registerCommands([
   ...IMPORT_COMMANDS,
   ...SAMPLE_COMMANDS,
   ...SYNTH_COMMANDS,
+  ...DRUMS_COMMANDS,
   ...SOUNDS_COMMANDS,
   ...REFERENCE_COMMANDS,
   ...STATUS_COMMANDS,
@@ -70,10 +73,14 @@ registerViews([
   { id: "sounds", title: "Sounds", region: "sidebar", component: Sounds },
   { id: "keys", title: "Keys", region: "panel", component: Keys },
   { id: "synth", title: "Synth", region: "panel", component: Synth },
+  { id: "drums", title: "Drums", region: "panel", component: Drums },
   { id: "import", title: "Import", region: "panel", component: Import },
   { id: "sample", title: "Sample", region: "panel", component: Sample, Title: SampleTitle },
   { id: "reference", title: "Reference", region: "aside", component: Reference },
 ]);
+
+// The panels' own files in the app data folder, read at start and kept saved.
+const APP_FILES = [synthFile, drumsFile];
 
 const MENUS: Menu[] = [
   {
@@ -88,7 +95,7 @@ const MENUS: Menu[] = [
     label: "View",
     groups: [
       ["view.toggleSidebar", "view.togglePanel", "view.toggleAside", "view.toggleMaximised"],
-      ["view.sounds", "view.keys", "view.synth", "view.import", "view.sample", "view.reference", "reference.lookUp"],
+      ["view.sounds", "view.keys", "view.synth", "view.drums", "view.import", "view.sample", "view.reference", "reference.lookUp"],
       ["editor.next", "editor.previous"],
     ],
   },
@@ -119,16 +126,18 @@ function App() {
     };
   }, []);
 
-  // The Synth view's patch and saved sounds, the same way (synths.json).
+  // The panels' own files (synths.json, drums.json), the same way.
   useEffect(() => {
     let live = true;
-    let stop: (() => void) | undefined;
-    void restoreSynthsOnce().then((ok) => {
-      if (live && ok) stop = persistSynths();
-    });
+    const stops: (() => void)[] = [];
+    for (const file of APP_FILES) {
+      void file.restoreOnce().then((ok) => {
+        if (live && ok) stops.push(file.persist());
+      });
+    }
     return () => {
       live = false;
-      stop?.();
+      stops.forEach((stop) => stop());
     };
   }, []);
 
