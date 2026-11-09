@@ -264,18 +264,31 @@ export function logFrequencies(count: number, min = 20, max = 20000): number[] {
   return Array.from({ length: count }, (_, i) => min * Math.pow(max / min, count > 1 ? i / (count - 1) : 0));
 }
 
+// ---------------------------------------------------------------- LFOs
+
+// One of superdough's LFO shapes at `phase` (0 to 1), from 0 to 1 (worklets.mjs
+// waveshapes). Skew moves a triangle's peak and a square's edge; the others ignore it.
+export function lfoValue(shape: string, phase: number, skew = 0.5): number {
+  const p = frac(phase);
+  switch (shape) {
+    case "sine":
+      return Math.sin(TWO_PI * p) * 0.5 + 0.5;
+    case "ramp":
+      return p;
+    case "saw":
+      return 1 - p;
+    case "square":
+      return p >= skew ? 0 : 1;
+    default: {
+      // tri
+      if (skew <= 0) return 1 - p;
+      if (skew >= 1) return p;
+      return p >= skew ? (1 - p) / (1 - skew) : p / skew;
+    }
+  }
+}
+
 // ---------------------------------------------------------------- envelopes
-
-// Which envelope the envelope display shows, and the settings each part reads.
-export type EnvelopeKind = "amp" | "filter" | "pitch";
-
-export const ENVELOPE_SETTINGS: Record<EnvelopeKind, { attack: string; decay: string; sustain: string | null; release: string }> = {
-  amp: { attack: "attack", decay: "decay", sustain: "sustain", release: "release" },
-  // The lowpass's envelope.
-  filter: { attack: "lpattack", decay: "lpdecay", sustain: "lpsustain", release: "lprelease" },
-  // Strudel has no psustain: with attack and decay set the pitch falls back to the note.
-  pitch: { attack: "pattack", decay: "pdecay", sustain: null, release: "prelease" },
-};
 
 // Where the envelope's corners are drawn, as fractions of the display: x across, y up
 // (0 at the bottom). Each time segment gets up to `SEGMENT` of the width along the same

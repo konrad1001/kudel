@@ -1,4 +1,4 @@
-import { filterGain, logFrequencies, envelopeLevel, type EnvelopeShape } from "./shapes";
+import { filterGain, logFrequencies, envelopeLevel, lfoValue, type EnvelopeShape } from "./shapes";
 import type { Settings } from "./controls";
 
 // Drawing the Synth view's displays: blocky columns on a pixel grid, like a terminal
@@ -247,4 +247,42 @@ export function drawEnvelope(
   ];
   for (const [letter, x] of letters) label(ctx, p, letter, xOf(x), bottom + 3, "center");
   if (options.amount) label(ctx, p, options.amount, width - 4, 4, "right");
+}
+
+// An LFO over a window (a cycle when it's synced, else a second): its shape repeated
+// `periods` times, as tall as its depth, around the middle. Quarters of the window are
+// marked; the window's length is labelled.
+export function drawLfo(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+  lfo: { shape: string; skew: number; periods: number; depth: number; active: boolean; window: string },
+): void {
+  const ctx = prepare(canvas, width, height);
+  if (!ctx) return;
+  const p = palette(canvas);
+  const top = 8;
+  const bottom = height - FOOT - 4;
+  const mid = (top + bottom) / 2;
+  const half = ((bottom - top) / 2) * Math.max(0.05, Math.min(1, lfo.depth));
+  ctx.fillStyle = p.dim;
+  ctx.fillRect(0, Math.round(mid), width, 1);
+  for (let q = 1; q < 4; q++) {
+    const x = Math.round((width * q) / 4);
+    for (let y = top; y < bottom; y += 4) ctx.fillRect(x, y, 1, 2);
+  }
+  ctx.strokeStyle = p.env;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = lfo.active ? 0.9 : 0.25;
+  ctx.beginPath();
+  for (let x = 0; x <= width; x += 1) {
+    const v = lfoValue(lfo.shape, (x / width) * lfo.periods, lfo.skew);
+    const y = mid + half - v * 2 * half;
+    if (x === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  label(ctx, p, lfo.window, width - 4, bottom + 3, "right");
+  if (!lfo.active) label(ctx, p, "off · drag to switch on", width / 2, 12, "center");
 }

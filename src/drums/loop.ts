@@ -48,6 +48,30 @@ export function rowMini(row: DrumRow): string | null {
   return tokens.join(" ");
 }
 
+// A row read back from mini-notation (code → panel), or null if the grid can't show it.
+// It takes what rowMini writes, and simple rows like it: one sound and rests (~ or -),
+// as 1, 2, 4, 8 or 16 steps, optionally a [group] or step repeated with *n, stretched
+// onto 16 steps ("bd*4" is a kick on every beat). Anything else (several sounds,
+// <alternation>, nested groups, other lengths) is null.
+export function parseRowMini(mini: string): DrumRow | null {
+  const text = mini.trim();
+  const repeat = /^(\[([^[\]]*)\]|[^\s[\]*]+)\*(\d+)$/.exec(text);
+  const tokens = repeat
+    ? Array.from({ length: Number(repeat[3]) }, () => (repeat[2] ?? repeat[1]).trim().split(/\s+/)).flat()
+    : text.split(/\s+/);
+  if (![1, 2, 4, 8, 16].includes(tokens.length)) return null;
+  const sounds = new Set(tokens.filter((token) => token !== "~" && token !== "-"));
+  if (sounds.size !== 1) return null;
+  const [sound] = sounds;
+  if (!isSoundName(sound)) return null;
+  const stride = STEPS / tokens.length;
+  const steps = emptySteps();
+  tokens.forEach((token, i) => {
+    if (token === sound) steps[i * stride] = true;
+  });
+  return { sound, steps };
+}
+
 // The loop's code: a const pattern, one s("…") per row that has steps on, played as it
 // is ($: beat) or stacked with other patterns.
 //

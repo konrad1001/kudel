@@ -1667,6 +1667,12 @@ body {
   cursor: grab;
 }
 
+/* The patch is linked to a const of its name in the open file. */
+.synth-linked {
+  color: var(--synth-osc);
+  font-size: 10px;
+}
+
 .synth-chip:hover {
   border-color: var(--foreground, #cccccc);
   opacity: 1;
@@ -1712,10 +1718,25 @@ body {
   border-left: 1px solid var(--gutterForeground, #3c3c3c);
 }
 
-.synth-saved {
-  flex: 0 0 14ch;
+/* The note to play over the saved sounds, each half the column's height. */
+.synth-left {
+  flex: 0 0 17ch;
   padding-left: 12px;
   border-left: none;
+}
+
+.synth-note,
+.synth-saved {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.synth-saved {
+  padding-top: 6px;
+  border-top: 1px solid var(--gutterForeground, #3c3c3c);
   overflow-y: auto;
 }
 
@@ -1740,7 +1761,7 @@ body {
 }
 
 .synth-output {
-  flex: 0 0 12ch;
+  flex: 0 0 9ch;
 }
 
 .synth-head {
@@ -1766,8 +1787,36 @@ body {
   margin-left: auto;
 }
 
+/* The mod column's destination tabs wrap onto a second line when it's narrow; its
+   env / lfo switch stays at the right. */
+.synth-envelope .synth-head {
+  height: auto;
+  min-height: 18px;
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
 .synth-envelope .synth-tabs {
+  flex-wrap: wrap;
   margin-left: 0;
+}
+
+.synth-envelope .synth-head .synth-tab {
+  padding: 1px 3px;
+}
+
+/* Over the dials: env / lfo, and at the right the LFO's off / hz / sync or the FM
+   envelope's checkbox. */
+.synth-mod-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.synth-mod-switch {
+  margin-left: auto;
 }
 
 .synth-tab {
@@ -2003,11 +2052,13 @@ body {
   accent-color: var(--synth-osc);
 }
 
-/* The note, as a pad that plays it. */
+/* The notes, as a pad that plays them. */
 .synth-pad {
   flex: 1;
-  min-height: 36px;
-  margin-top: 4px;
+  min-height: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font: inherit;
   font-size: 13px;
   color: inherit;
@@ -2033,8 +2084,9 @@ body {
   font-size: 10px;
 }
 
-.synth-note {
-  width: 5ch;
+.synth-note-input {
+  flex: 1;
+  width: 100%;
   text-align: center;
 }
 

@@ -15,6 +15,7 @@ import {
   useDrums,
 } from "../drums/drumsStore";
 import { drumBanks, isSoundName, loopCode, soundExists, STEPS } from "../drums/loop";
+import { useDrumsLink } from "../drums/codeLink";
 import { identifierFor } from "../synth/patch";
 import { useSounds } from "../sounds/soundsStore";
 import { CommandButton, nameWarning } from "./CommandButton";
@@ -74,6 +75,7 @@ function Toolbar() {
       <span className="synth-chip" draggable onDragStart={(event) => dragCode(event, code)} title={code}>
         ⠿ $: {identifierFor(name)}
       </span>
+      <LinkStatus />
       <CommandButton command="drums.clear">clear</CommandButton>
       <label className="drums-field">
         kit
@@ -93,6 +95,18 @@ function Toolbar() {
         </span>
       )}
     </div>
+  );
+}
+
+// Shown while the open document has a loop named like this one: they're linked both ways.
+function LinkStatus() {
+  const linked = useDrumsLink();
+  const name = useDrums((s) => identifierFor(s.name));
+  if (!linked) return null;
+  return (
+    <span className="synth-linked" title={`Linked both ways with const ${name} in the open file`}>
+      ↔ linked
+    </span>
   );
 }
 

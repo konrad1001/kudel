@@ -27,7 +27,7 @@ export function oscKind(s: string): OscKind {
   return "wavetable";
 }
 
-export type Section = "osc" | "filter" | "amp" | "pitch" | "fx" | "out";
+export type Section = "osc" | "filter" | "amp" | "pitch" | "mod" | "fx" | "out";
 
 // Every setting, by id. Each id is the control it writes, except the lowpass and
 // highpass switches (lp, hp), which write nothing themselves.
@@ -77,7 +77,7 @@ export type Param = NumberParam | ChoiceParam | HarmonicsParam;
 export const HARMONICS = 16;
 
 // Settings that switch something on or off without writing a control themselves.
-const SWITCHES = new Set(["lp", "hp"]);
+const SWITCHES = new Set(["lp", "hp", "amplfo", "filterlfo", "poslfo", "warplfo", "fmenvon", "pwlfo"]);
 
 const WARP_MODES = [
   "none", "asym", "mirror", "bendp", "bendm", "bendmp", "sync", "quant", "fold", "pwm",
@@ -98,6 +98,56 @@ const kindOf = (s: Settings) => oscKind(String(s.s));
 export const lowpassOn = (s: Settings) => s.lp === "on";
 export const highpassOn = (s: Settings) => s.hp === "on" && s.ftype !== "ladder";
 const lowpassEnvOn = (s: Settings) => lowpassOn(s) && s.lpenv !== 0;
+
+// LFOs: superdough's own per destination (tremolo, lprate, wtrate, warprate), each off,
+// at a rate in Hz, or synced to the tempo as wobbles per cycle (its rate is cps × sync).
+export const LFO_MODES = ["off", "hz", "sync"] as const;
+const LFO_SYNCS: [number, string][] = [
+  [0.25, "1/4"], [0.5, "1/2"], [1, "1"], [2, "2"], [4, "4"], [8, "8"], [16, "16"],
+];
+// superdough's LFO shapes (helpers.mjs getModulationShapeInput), by the names it takes.
+export const LFO_SHAPES = ["sine", "tri", "ramp", "saw", "square"];
+
+const lfoOn = (id: string) => (s: Settings) => s[id] !== "off";
+const lfoHz = (id: string) => (s: Settings) => s[id] === "hz";
+const lfoSync = (id: string) => (s: Settings) => s[id] === "sync";
+const both = (...tests: ((s: Settings) => boolean)[]) => (s: Settings) => tests.every((test) => test(s));
+
+// One destination's LFO: its switch, rate (Hz) or sync (per cycle), depth, shape and
+// skew, written only while it's on (and, with `also`, only while that holds too).
+function lfo(
+  switchId: string,
+  [rate, sync, depth, shape, skew]: [string, string, string, string, string],
+  depthRange: [number, number, number, number],
+  also: (s: Settings) => boolean = () => true,
+  more: Partial<BaseParam> = {},
+): Param[] {
+  return [
+    choice(switchId, "lfo", "mod", [...LFO_MODES], "off", more),
+    num(rate, "rate", "mod", [0.05, 20, 2, 2], { ...more, active: both(also, lfoHz(switchId)), curve: "log", unit: "Hz" }),
+    choice(sync, "rate", "mod", LFO_SYNCS, 1, { ...more, active: both(also, lfoSync(switchId)) }),
+    num(depth, "depth", "mod", depthRange, { ...more, active: both(also, lfoOn(switchId)) }),
+    choice(shape, "shape", "mod", LFO_SHAPES, "sine", { ...more, active: both(also, lfoOn(switchId)) }),
+    num(skew, "skew", "mod", [0, 1, 0.5, 2], { ...more, active: both(also, lfoOn(switchId)), omitAt: 0.5 }),
+  ];
+}
+
+// One destination's envelope beyond the amp, filter and pitch ones (wavetable position
+// and warp): an amount and A, D, S, R, written while the amount isn't 0.
+function envelope(
+  [amount, attack, decay, sustain, release]: [string, string, string, string, string],
+  more: Partial<BaseParam> = {},
+): Param[] {
+  const on = (s: Settings) => s[amount] !== 0;
+  return [
+    num(amount, "env", "mod", [-1, 1, 0, 2], { ...more, omitAt: 0 }),
+    // superdough's defaults for these (wavetable.mjs: [0, 0.5, 0, 0.1]).
+    num(attack, "attack", "mod", [0, 10, 0, 3], { ...more, ...sec, active: on }),
+    num(decay, "decay", "mod", [0, 10, 0.5, 3], { ...more, ...sec, active: on }),
+    num(sustain, "sustain", "mod", [0, 1, 0, 2], { ...more, active: on }),
+    num(release, "release", "mod", [0, 10, 0.1, 3], { ...more, ...sec, active: on }),
+  ];
+}
 const unisonOn = (s: Settings) => Number(s.unison) > 1;
 const WT = { kinds: ["wavetable"] as OscKind[] };
 const UNISON = { kinds: ["supersaw", "wavetable"] as OscKind[] };
@@ -128,6 +178,7 @@ const choice = (
 });
 
 const sec = { unit: "s", curve: "time" } as const;
+const fmEnvOn = (s: Settings) => s.fmenvon === "on" && s.fmi !== 0;
 
 // In the order they're written. The oscillator's choices are the registered sounds, so
 // `s` has no fixed options here.
@@ -136,9 +187,10 @@ export const PARAMS: Param[] = [
   num("n", "table", "osc", [0, 127, 0, 0], { ...WT, omitAt: 0 }),
   num("wt", "position", "osc", [0, 1, 0, 2], { ...WT }),
   num("warp", "warp", "osc", [0, 1, 0, 2], { ...WT, omitAt: 0 }),
+  // Needed whenever anything warps: the warp itself, or its envelope or LFO moving it.
   choice("warpmode", "warp mode", "osc", WARP_MODES, "none", {
     ...WT,
-    active: (s) => s.warp !== 0,
+    active: (s) => s.warp !== 0 || s.warpenv !== 0 || s.warplfo !== "off",
     omitAt: "none",
   }),
   num("pw", "width", "osc", [0, 1, 0.5, 2], { kinds: ["pulse"] }),
@@ -192,12 +244,36 @@ export const PARAMS: Param[] = [
   num("vib", "vibrato", "pitch", [0, 20, 0, 2], { omitAt: 0, unit: "Hz", curve: "time" }),
   num("vibmod", "depth", "pitch", [0, 12, 0.5, 2], { active: (s) => s.vib !== 0, unit: "st" }),
 
+  // Modulation beyond the amp, filter and pitch envelopes and vibrato (the mod column).
+  ...lfo("amplfo", ["tremolo", "tremolosync", "tremolodepth", "tremoloshape", "tremoloskew"], [0, 1, 0.5, 2]),
+  // Its depth is a share of the cutoff: 1 swings it half the cutoff either way.
+  ...lfo("filterlfo", ["lprate", "lpsync", "lpdepth", "lpshape", "lpskew"], [0, 4, 1, 2], lowpassOn),
+  ...envelope(["wtenv", "wtattack", "wtdecay", "wtsustain", "wtrelease"], WT),
+  ...lfo("poslfo", ["wtrate", "wtsync", "wtdepth", "wtshape", "wtskew"], [0, 1, 0.5, 2], () => true, WT),
+  ...envelope(["warpenv", "warpattack", "warpdecay", "warpsustain", "warprelease"], WT),
+  ...lfo("warplfo", ["warprate", "warpsync", "warpdepth", "warpshape", "warpskew"], [0, 1, 0.5, 2], () => true, WT),
+  // The FM envelope has no amount of its own: it scales fmi from 0 to its value.
+  choice("fmenvon", "env", "mod", ["off", "on"], "off"),
+  num("fmattack", "attack", "mod", [0, 10, 0.001, 3], { ...sec, active: fmEnvOn }),
+  num("fmdecay", "decay", "mod", [0, 10, 0.3, 3], { ...sec, active: fmEnvOn }),
+  num("fmsustain", "sustain", "mod", [0, 1, 0, 2], { active: fmEnvOn }),
+  num("fmrelease", "release", "mod", [0, 10, 0.1, 3], { ...sec, active: fmEnvOn }),
+  choice("fmenv", "curve", "mod", ["exp", "lin"], "exp", { active: fmEnvOn, omitAt: "exp" }),
+  // A pulse's width LFO: pwrate in Hz, pwsweep how far it swings.
+  choice("pwlfo", "lfo", "mod", ["off", "on"], "off", { kinds: ["pulse"] }),
+  num("pwrate", "rate", "mod", [0.05, 20, 1, 2], { kinds: ["pulse"], active: (s) => s.pwlfo === "on", curve: "log", unit: "Hz" }),
+  num("pwsweep", "depth", "mod", [0, 1, 0.3, 2], { kinds: ["pulse"], active: (s) => s.pwlfo === "on" }),
+
   num("delay", "delay", "fx", [0, 1, 0, 2], { omitAt: 0 }),
   choice("delaysync", "time", "fx", DELAY_SYNCS, 3 / 16, { active: (s) => s.delay !== 0 }),
   num("delayfeedback", "feedback", "fx", [0, 0.95, 0.5, 2], { active: (s) => s.delay !== 0 }),
   num("room", "reverb", "fx", [0, 1, 0, 2], { omitAt: 0 }),
   num("roomsize", "size", "fx", [0, 10, 2, 2], { active: (s) => s.room !== 0 }),
   num("roomlp", "damp", "fx", [200, 20000, 8000, 0], { active: (s) => s.room !== 0, curve: "log", unit: "Hz" }),
+  // On while its rate isn't 0. (superdough 1.3.0 has no chorus: its control does nothing.)
+  num("phaserrate", "phaser", "fx", [0, 10, 0, 2], { omitAt: 0, unit: "Hz", curve: "time" }),
+  num("phaserdepth", "depth", "fx", [0, 1, 0.75, 2], { active: (s) => s.phaserrate !== 0 }),
+  num("phasersweep", "sweep", "fx", [0, 4000, 2000, 0], { active: (s) => s.phaserrate !== 0, unit: "Hz" }),
 
   num("gain", "gain", "out", [0, 2, 1, 2], { omitAt: 1 }),
   num("pan", "pan", "out", [0, 1, 0.5, 2], { omitAt: 0.5 }),

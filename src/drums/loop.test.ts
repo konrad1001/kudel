@@ -5,6 +5,7 @@ import {
   isSoundName,
   loopCode,
   parseDrumFile,
+  parseRowMini,
   rowMini,
   saveLoop,
   serializeDrumFile,
@@ -110,5 +111,28 @@ describe("drum file", () => {
     a.rows[0].steps[0] = true;
     expect(saved[0].rows[0].steps[0]).toBe(false);
     expect(saveLoop([defaultLoop("a"), defaultLoop("b")], a).map((l) => l.name)).toEqual(["a", "b"]);
+  });
+});
+
+describe("parseRowMini", () => {
+  it("reads back every row rowMini writes", () => {
+    for (const pattern of ["x...x...x...x...", "....x.......x...", "xxxxxxxxxxxxxxxx", ".x.x.x.x.x.x.x.x", "x.....x...x.....", "...............x"]) {
+      const written = row("bd:3", pattern);
+      expect(parseRowMini(rowMini(written)!)).toEqual(written);
+    }
+  });
+
+  it("stretches shorter rows onto 16 steps", () => {
+    expect(parseRowMini("bd*4")).toEqual(row("bd", "x...x...x...x..."));
+    expect(parseRowMini("bd ~ ~ bd ~ ~ bd -")).toEqual(row("bd", "x.....x.....x..."));
+    expect(parseRowMini("[~ sd]*2")).toEqual(row("sd", "....x.......x..."));
+  });
+
+  it("can't show rows with several sounds, alternation or odd lengths", () => {
+    expect(parseRowMini("bd sd")).toBeNull();
+    expect(parseRowMini("<bd sd> ~")).toBeNull();
+    expect(parseRowMini("bd ~ ~")).toBeNull();
+    expect(parseRowMini("~ ~ ~ ~")).toBeNull();
+    expect(parseRowMini("[bd [~ bd]]*2")).toBeNull();
   });
 });

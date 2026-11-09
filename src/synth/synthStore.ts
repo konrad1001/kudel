@@ -5,8 +5,8 @@ import { isTextField, registerContextKey } from "../commands/when";
 import { appFile } from "../files/appFile";
 import { showView } from "../layout/layoutStore";
 import { getParam, normalize, patchControls, type Settings, type Value } from "./controls";
-import { defaultPatch, parseSynthFile, patchCode, savePatch, serializeSynthFile, shiftOctave, type Patch } from "./patch";
-import type { EnvelopeKind } from "./shapes";
+import { defaultPatch, parseSynthFile, patchCode, savePatch, serializeSynthFile, shiftChord, parseChord, type Patch } from "./patch";
+import type { ModTab, ModView } from "./mod";
 
 // The Synth view. The patch being edited is UI state like the Keys view's sound: playing
 // it is an audition and never changes what the pattern plays. It reaches the code only
@@ -17,7 +17,7 @@ interface SynthState {
   settings: Settings;
   // Saved patches, kept for the app (synths.json), not per project.
   saved: Patch[];
-  // What the play button plays: a note name and seconds held.
+  // What the play button plays: notes (one, or several as a chord) and seconds held.
   note: string;
   length: number;
   // Why the last audition or copy failed, until the next one works.
@@ -25,9 +25,10 @@ interface SynthState {
   // Briefly true after the code is copied, or the patch saved.
   copied: boolean;
   justSaved: boolean;
-  // Which envelope the envelope display shows, and whether the oscillator display shows
-  // the wave or its harmonics. Not saved.
-  envelope: EnvelopeKind;
+  // The mod column's tab and whether it shows the envelope or the LFO, and whether the
+  // oscillator display shows the wave or its harmonics. Not saved.
+  modTab: ModTab;
+  modView: ModView;
   oscView: "wave" | "harmonics";
 }
 
@@ -42,7 +43,8 @@ export const useSynth = create<SynthState>(() => {
     error: null,
     copied: false,
     justSaved: false,
-    envelope: "amp",
+    modTab: "amp",
+    modView: "env",
     oscView: "wave",
   };
 });
@@ -78,21 +80,33 @@ export function setNote(note: string): void {
 }
 
 export function shiftNoteOctave(step: number): void {
-  set((s) => ({ note: shiftOctave(s.note, step) }));
+  set((s) => ({ note: shiftChord(s.note, step) }));
 }
 
-export function showEnvelope(envelope: EnvelopeKind): void {
-  set({ envelope });
+export function showModTab(modTab: ModTab): void {
+  set({ modTab });
+}
+
+export function showModView(modView: ModView): void {
+  set({ modView });
+}
+
+// Changes several settings as one (switching an envelope or LFO on as a drag starts).
+export function setSettings(changes: Record<string, Value>): void {
+  for (const [id, value] of Object.entries(changes)) setSetting(id, value);
 }
 
 export function showOscView(oscView: SynthState["oscView"]): void {
   set({ oscView });
 }
 
-// An effect's mix (delay, room) set before it was switched off, to switch back on to.
+// An effect's mix (delay, room) or rate (phaserrate) before it was switched off, to
+// switch back on to.
 const mixBefore = new Map<string, number>();
+// What an effect switches on to the first time.
+const FIRST_ON: Record<string, number> = { delay: 0.25, room: 0.25, phaserrate: 1 };
 
-// Switches an effect on (back to its last mix, or a quarter) or off (a mix of 0, which
+// Switches an effect on (back to where it was, or a starting value) or off (0, which
 // leaves its controls out of the code).
 export function toggleEffect(id: string): void {
   const current = Number(get().settings[id]);
@@ -100,7 +114,7 @@ export function toggleEffect(id: string): void {
     mixBefore.set(id, current);
     setSetting(id, 0);
   } else {
-    setSetting(id, mixBefore.get(id) ?? 0.25);
+    setSetting(id, mixBefore.get(id) ?? FIRST_ON[id] ?? 0.25);
   }
 }
 
@@ -108,12 +122,12 @@ export function setLength(length: number): void {
   if (Number.isFinite(length) && length > 0) set({ length: Math.min(length, 30) });
 }
 
-// Plays the patch on the note, exactly as note(note).set(patch) would.
+// Plays the patch on the note or chord, exactly as note("…").set(patch) would.
 export function play(): void {
   const { settings, note, length } = get();
   set({ error: null });
   const controls = patchControls(settings) as Record<string, Value> & { s: string };
-  engine.auditionControls({ controls, note: note.trim() || "c3", duration: length }).catch((err: unknown) => {
+  engine.auditionControls({ controls, notes: parseChord(note), duration: length }).catch((err: unknown) => {
     set({ error: err instanceof Error ? err.message : String(err) });
   });
 }

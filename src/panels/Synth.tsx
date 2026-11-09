@@ -15,6 +15,7 @@ import {
   type NumberParam,
 } from "../synth/controls";
 import { identifierFor, patchCode } from "../synth/patch";
+import { tidyLinkedObject, useCodeLink } from "../synth/codeLink";
 import { CommandButton, nameWarning } from "./CommandButton";
 import { dragCode, SavedList } from "./SavedList";
 import {
@@ -26,15 +27,17 @@ import {
   setLength,
   setName,
   setSetting,
+  setSettings,
   shiftNoteOctave,
   setNote,
-  showEnvelope,
+  showModTab,
+  showModView,
   showOscView,
   toggleEffect,
   useSynth,
 } from "../synth/synthStore";
-import { EnvelopeDisplay, FilterDisplay, HarmonicsDisplay, PositionSlider, WaveDisplay } from "./SynthDisplays";
-import type { EnvelopeKind } from "../synth/shapes";
+import { EnvelopeDisplay, FilterDisplay, HarmonicsDisplay, LfoDisplay, PositionSlider, WaveDisplay } from "./SynthDisplays";
+import { availableTabs, enableEnvelope, lfoDials, modulated, viewFor, type ModTabSpec } from "../synth/mod";
 
 // The Synth view, laid out like a hardware synth: saved sounds, then oscillator, filter,
 // envelopes, effects and output side by side, each with a display that can be dragged
@@ -45,10 +48,10 @@ export function Synth() {
     <div className="synth" tabIndex={0} data-autofocus onFocus={engine.warmUpAudio}>
       <Toolbar />
       <div className="synth-columns">
-        <Saved />
+        <NoteAndSaved />
         <OscColumn />
         <FilterColumn />
-        <EnvelopeColumn />
+        <ModColumn />
         <EffectsColumn />
         <OutputColumn />
       </div>
@@ -78,6 +81,7 @@ function Toolbar() {
       <CommandButton command="synth.save">{justSaved ? "saved" : "save"}</CommandButton>
       <CommandButton command="synth.copy">{copied ? "copied" : "copy"}</CommandButton>
       <CodeChip />
+      <LinkStatus />
       <button type="button" className="ascii-button" title="Start again from the defaults" onClick={reset}>
         [reset]
       </button>
@@ -91,6 +95,32 @@ function Toolbar() {
 }
 
 // The patch as code: hover to read it, drag it into the editor.
+// Shown while the open document has a const named like the patch: the panel's changes
+// are written into it.
+function LinkStatus() {
+  const linked = useCodeLink();
+  const name = useSynth((s) => identifierFor(s.name));
+  if (!linked) return null;
+  return (
+    <>
+      <span className="synth-linked" title={`Linked both ways with const ${name} in the open file`}>
+        ↔ linked
+      </span>
+      <button
+        type="button"
+        className="ascii-button"
+        title={`Rewrite const ${name} one line per category`}
+        onClick={() => {
+          const problem = tidyLinkedObject();
+          if (problem) useSynth.setState({ error: problem });
+        }}
+      >
+        [tidy]
+      </button>
+    </>
+  );
+}
+
 function CodeChip() {
   const name = useSynth((s) => s.name);
   const settings = useSynth((s) => s.settings);
@@ -119,13 +149,61 @@ function Column({ className, head, children }: { className: string; head: ReactN
   );
 }
 
+// The start of the chain: the note (or chord) the patch plays, over the saved sounds.
+function NoteAndSaved() {
+  return (
+    <section className="synth-column synth-left">
+      <NoteInput />
+      <Saved />
+    </section>
+  );
+}
+
+// The notes play pads: one, or several as a chord ("c3 e3 g3", "[c3,e3,g3]"), and how
+// long they're held. Clicking the pad plays them.
+function NoteInput() {
+  const note = useSynth((s) => s.note);
+  return (
+    <div className="synth-note">
+      <div className="synth-head">
+        <span className="synth-title">note</span>
+      </div>
+      <button type="button" className="synth-pad" title={withKey("Play Synth", useKeyFor("synth.play"))} onClick={play}>
+        {note.trim() || "c3"}
+      </button>
+      <div className="synth-note-row">
+        <button type="button" className="ascii-button" aria-label="Octave down" title="Every note an octave down" onClick={() => shiftNoteOctave(-1)}>
+          -
+        </button>
+        <input
+          className="synth-input synth-note-input"
+          spellCheck={false}
+          aria-label="Notes"
+          placeholder="c3 e3 g3"
+          title="A note, or several to play as a chord"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          onKeyDown={backToPanelOnEnter}
+        />
+        <button type="button" className="ascii-button" aria-label="Octave up" title="Every note an octave up" onClick={() => shiftNoteOctave(1)}>
+          +
+        </button>
+      </div>
+      <LengthField />
+    </div>
+  );
+}
+
 function Saved() {
   const saved = useSynth((s) => s.saved);
   const name = useSynth((s) => s.name);
   return (
-    <Column className="synth-saved" head={<span className="synth-title">saved</span>}>
+    <div className="synth-saved">
+      <div className="synth-head">
+        <span className="synth-title">saved</span>
+      </div>
       <SavedList items={saved} current={name} codeFor={patchCode} onOpen={open} onRemove={remove} empty="[save] keeps a sound here" />
-    </Column>
+    </div>
   );
 }
 
@@ -188,30 +266,77 @@ function FilterColumn() {
   );
 }
 
-const ENVELOPE_DIALS: Record<EnvelopeKind, string[]> = {
-  amp: ["attack", "decay", "sustain", "release"],
-  filter: ["lpattack", "lpdecay", "lpsustain", "lprelease", "lpenv"],
-  pitch: ["pattack", "pdecay", "prelease", "penv", "vib", "vibmod"],
-};
-
-function EnvelopeColumn() {
-  const envelope = useSynth((s) => s.envelope);
+// The mod column: a tab per destination the oscillator has (a dot marks the ones that
+// are moving something), each showing its envelope or its LFO.
+function ModColumn() {
+  const settings = useSynth((s) => s.settings);
+  const askedTab = useSynth((s) => s.modTab);
+  const askedView = useSynth((s) => s.modView);
+  const tabs = availableTabs(settings);
+  const tab = tabs.find((t) => t.id === askedTab) ?? tabs[0];
+  const view = viewFor(tab, askedView);
   return (
     <Column
       className="synth-envelope"
       head={
         <span className="synth-tabs">
-          {(["amp", "filter", "pitch"] as const).map((kind) => (
-            <Tab key={kind} selected={envelope === kind} onClick={() => showEnvelope(kind)}>
-              {kind}
+          {tabs.map((t) => (
+            <Tab key={t.id} selected={t.id === tab.id} onClick={() => showModTab(t.id)}>
+              {modulated(t, settings) ? `${t.label}•` : t.label}
             </Tab>
           ))}
         </span>
       }
     >
-      <EnvelopeDisplay kind={envelope} />
-      <Dials ids={ENVELOPE_DIALS[envelope]} />
+      {view === "env" ? <EnvelopeDisplay key={tab.id} tab={tab} /> : <LfoDisplay key={tab.id} tab={tab} />}
+      <div className="synth-mod-row">
+        <span className="synth-tabs">
+          <Tab selected={view === "env"} disabled={!tab.env} onClick={() => showModView("env")}>
+            env
+          </Tab>
+          <Tab selected={view === "lfo"} disabled={!tab.lfo} onClick={() => showModView("lfo")}>
+            lfo
+          </Tab>
+        </span>
+        <span className="synth-mod-switch">{view === "env" ? <EnvelopeSwitch tab={tab} /> : <LfoSwitch tab={tab} />}</span>
+      </div>
+      <Dials ids={view === "env" ? tab.env!.dials : lfoDials(tab.lfo!, settings)} />
     </Column>
+  );
+}
+
+// The FM envelope's on switch (the others are on while their amount isn't 0). Switching
+// it on with no FM also gives it some, so it's heard.
+function EnvelopeSwitch({ tab }: { tab: ModTabSpec }) {
+  const id = tab.env?.switch;
+  const on = useSynth((s) => (id ? s.settings[id] === "on" : false));
+  if (!id) return null;
+  return (
+    <label className="synth-check">
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={() => (on ? setSetting(id, "off") : setSettings(enableEnvelope(tab, useSynth.getState().settings)))}
+      />
+      on
+    </label>
+  );
+}
+
+// An LFO's off / hz / sync (or off / on); vibrato has none, it's on while its rate isn't 0.
+function LfoSwitch({ tab }: { tab: ModTabSpec }) {
+  const id = tab.lfo?.switch;
+  const value = useSynth((s) => (id ? s.settings[id] : null));
+  if (!id) return null;
+  const modes = (getParam(id) as ChoiceParam).options.map((o) => String(o.value));
+  return (
+    <span className="synth-tabs">
+      {modes.map((mode) => (
+        <Tab key={mode} selected={value === mode} onClick={() => setSetting(id, mode)}>
+          {mode}
+        </Tab>
+      ))}
+    </span>
   );
 }
 
@@ -220,6 +345,7 @@ function EffectsColumn() {
     <Column className="synth-effects" head={<span className="synth-title">effects</span>}>
       <Effect id="delay" title="delay" choice="delaysync" dials={["delayfeedback", "delay"]} />
       <Effect id="room" title="reverb" dials={["roomsize", "roomlp", "room"]} />
+      <Effect id="phaserrate" title="phaser" dials={["phaserdepth", "phasersweep", "phaserrate"]} />
     </Column>
   );
 }
@@ -242,30 +368,9 @@ function Effect({ id, title, choice, dials }: { id: string; title: string; choic
 }
 
 function OutputColumn() {
-  const note = useSynth((s) => s.note);
   return (
     <Column className="synth-output" head={<span className="synth-title">output</span>}>
       <Dials ids={["gain", "pan"]} />
-      <button type="button" className="synth-pad" title={withKey("Play Synth", useKeyFor("synth.play"))} onClick={play}>
-        {note || "c3"}
-      </button>
-      <div className="synth-note-row">
-        <button type="button" className="ascii-button" aria-label="Octave down" onClick={() => shiftNoteOctave(-1)}>
-          -
-        </button>
-        <input
-          className="synth-input synth-note"
-          spellCheck={false}
-          aria-label="Note"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-          onKeyDown={backToPanelOnEnter}
-        />
-        <button type="button" className="ascii-button" aria-label="Octave up" onClick={() => shiftNoteOctave(1)}>
-          +
-        </button>
-      </div>
-      <LengthField />
     </Column>
   );
 }

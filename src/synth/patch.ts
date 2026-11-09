@@ -1,9 +1,9 @@
+import { byLine } from "./codeLayout";
 import {
   DEFAULT_SETTINGS,
   normalize,
   PARAMS,
   patchEntries,
-  type Section,
   type Settings,
   type Value,
 } from "./controls";
@@ -43,13 +43,13 @@ export function isReserved(id: string): boolean {
 
 // Single quotes: Strudel's transpiler turns double-quoted strings into mini-notation
 // patterns, and .set() needs plain values.
-function literal(value: Value): string {
+export function literal(value: Value): string {
   if (Array.isArray(value)) return `[${value.join(", ")}]`;
   return typeof value === "number" ? String(value) : `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
 
-// The code for a patch: a const object of Strudel controls, one line per section,
-// used as note("…").set(name).
+// The code for a patch: a const object of Strudel controls, one line per category
+// (codeLayout.ts), used as note("…").set(name).
 //
 //   const bass = {
 //     s: 'supersaw', unison: 5, detune: 0.18, spread: 0.6,
@@ -57,11 +57,8 @@ function literal(value: Value): string {
 //     attack: 0.005, decay: 0.3, sustain: 0.7, release: 0.2,
 //   }
 export function patchCode(patch: Patch): string {
-  const lines = new Map<Section, string[]>();
-  for (const { control, value, section } of patchEntries(patch.settings)) {
-    lines.set(section, [...(lines.get(section) ?? []), `${control}: ${literal(value)}`]);
-  }
-  const body = [...lines.values()].map((entries) => `  ${entries.join(", ")},`).join("\n");
+  const lines = byLine(patchEntries(patch.settings), (entry) => entry.control);
+  const body = lines.map((line) => `  ${line.map(({ control, value }) => `${control}: ${literal(value)}`).join(", ")},`).join("\n");
   return `const ${identifierFor(patch.name)} = {\n${body}\n}\n`;
 }
 
@@ -127,11 +124,31 @@ export function savePatch(saved: Patch[], patch: Patch): Patch[] {
   return saved.map((p, i) => (i === at ? copy : p));
 }
 
-// A note name an octave or more up or down: "c3" +1 → "c4", "a#" (octave 3 implied) -1
-// → "a#2". Anything else is left as it is.
+// A note an octave or more up or down: "c3" +1 → "c4", "a#" (octave 3 implied) -1 →
+// "a#2", MIDI 60 +1 → 72. Anything else is left as it is.
 export function shiftOctave(note: string, step: number): string {
+  if (/^\d+$/.test(note.trim())) return String(Math.min(127, Math.max(0, Number(note) + 12 * step)));
   const match = /^([a-g](?:#|b|s|f)*)(-?\d+)?$/i.exec(note.trim());
   if (!match) return note;
   const octave = Math.min(9, Math.max(0, Number(match[2] ?? 3) + step));
   return `${match[1]}${octave}`;
+}
+
+// Separators between a chord's notes: spaces, commas, and mini-notation's brackets.
+const CHORD_SEPARATORS = /[\s,[\]]+/;
+
+// The notes a field lists, to play together: "c3 e3 g3", "c3,e3,g3" or "[c3,e3,g3]".
+// MIDI numbers come back as numbers. Empty means c3.
+export function parseChord(text: string): (string | number)[] {
+  const notes = text.split(CHORD_SEPARATORS).filter(Boolean);
+  if (notes.length === 0) return ["c3"];
+  return notes.map((note) => (/^\d+$/.test(note) ? Number(note) : note));
+}
+
+// Every note of a chord an octave or more up or down, keeping how it was written.
+export function shiftChord(text: string, step: number): string {
+  return text
+    .split(/([\s,[\]]+)/)
+    .map((part) => (part && !CHORD_SEPARATORS.test(part) ? shiftOctave(part, step) : part))
+    .join("");
 }

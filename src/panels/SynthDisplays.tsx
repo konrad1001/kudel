@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
 import * as engine from "../engine";
-import { fromDial, getParam, highpassOn, isActive, lowpassOn, oscKind, toDial, type NumberParam, type Settings } from "../synth/controls";
-import { drawEnvelope, drawFilter, drawHarmonics, drawWaves, filterNodeX, FOOT } from "../synth/draw";
+import { fromDial, getParam, highpassOn, isActive, lowpassOn, oscKind, toDial, type NumberParam, type Param, type Value } from "../synth/controls";
+import { drawEnvelope, drawFilter, drawHarmonics, drawLfo, drawWaves, filterNodeX, FOOT } from "../synth/draw";
+import { enableEnvelope, enableLfo, envelopeOn, lfoOn, type ModTabSpec } from "../synth/mod";
 import {
-  ENVELOPE_SETTINGS,
   envelopeShape,
   envelopeZoom,
   handleDial,
@@ -11,9 +11,8 @@ import {
   oscCycle,
   paintHarmonics,
   type EnvelopeHandle,
-  type EnvelopeKind,
 } from "../synth/shapes";
-import { setSetting, useSynth } from "../synth/synthStore";
+import { setSetting, setSettings, useSynth } from "../synth/synthStore";
 
 // The Synth view's displays. Each draws from the patch's settings and drags them: a drag
 // changes the same settings as the dials under it, so it's still the code's controls.
@@ -269,19 +268,12 @@ export function FilterDisplay() {
 
 // ---------------------------------------------------------------- envelopes
 
-const AMOUNT: Partial<Record<EnvelopeKind, string>> = { filter: "lpenv", pitch: "penv" };
-
-function envelopeActive(kind: EnvelopeKind, settings: Settings): boolean {
-  if (kind === "amp") return true;
-  if (kind === "filter") return lowpassOn(settings) && settings.lpenv !== 0;
-  return settings.penv !== 0;
-}
-
-// The amp, filter or pitch envelope. Drag a corner: the attack's peak sets the attack,
-// the decay's corner the decay and sustain, the end the release.
-export function EnvelopeDisplay({ kind }: { kind: EnvelopeKind }) {
+// A mod tab's envelope. Drag a corner: the attack's peak sets the attack, the decay's
+// corner the decay and sustain, the end the release. Dragging one that's off switches
+// it on (enableEnvelope), so the drag is heard.
+export function EnvelopeDisplay({ tab }: { tab: ModTabSpec }) {
   const settings = useSynth((s) => s.settings);
-  const ids = ENVELOPE_SETTINGS[kind];
+  const ids = tab.env!;
   const params = { attack: numberParam(ids.attack), decay: numberParam(ids.decay), release: numberParam(ids.release) };
   const dials = {
     attack: toDial(params.attack, Number(settings[ids.attack])),
@@ -292,12 +284,11 @@ export function EnvelopeDisplay({ kind }: { kind: EnvelopeKind }) {
   // Fixed from the start of a drag to its end.
   const dragZoom = useRef<number | null>(null);
   const shape = envelopeShape(dials, sustain, dragZoom.current ?? envelopeZoom(dials));
-  const active = envelopeActive(kind, settings);
-  const amountId = AMOUNT[kind];
-  const amount = amountId ? `${amountId} ${settings[amountId]}` : undefined;
+  const active = envelopeOn(tab, settings);
+  const amount = ids.amount ? `${ids.amount} ${settings[ids.amount]}` : undefined;
   const ref = useCanvas(
     (canvas, width, height) => drawEnvelope(canvas, width, height, shape, { active, hasSustain: !!ids.sustain, amount }),
-    [settings, kind, active, shape.zoom],
+    [settings, tab, active, shape.zoom],
   );
   const handle = useRef<EnvelopeHandle | null>(null);
   const [, setRefit] = useState(0);
@@ -311,13 +302,7 @@ export function EnvelopeDisplay({ kind }: { kind: EnvelopeKind }) {
       const { y } = pointerAt(event, FOOT + 4);
       dragZoom.current = shape.zoom;
       handle.current = nearestHandle(shape, xAt(event), y, !!ids.sustain);
-      // Dragging the filter or pitch envelope while it has no amount gives it one, so the
-      // drag is heard; the filter's also switches the lowpass on, which it moves.
-      if (amountId && Number(useSynth.getState().settings[amountId]) === 0) setSetting(amountId, kind === "pitch" ? 12 : 2);
-      if (kind === "filter" && useSynth.getState().settings.lp !== "on") {
-        setSetting("lp", "on");
-        if (Number(useSynth.getState().settings.cutoff) >= 20000) setSetting("cutoff", 1000);
-      }
+      setSettings(enableEnvelope(tab, useSynth.getState().settings));
     },
     (event) => {
       const which = handle.current;
@@ -353,4 +338,64 @@ export function EnvelopeDisplay({ kind }: { kind: EnvelopeKind }) {
       onPointerCancel={endDrag}
     />
   );
+}
+
+// ---------------------------------------------------------------- LFOs
+
+// A mod tab's LFO over a cycle (synced) or a second (in Hz). Drag up and down for its
+// depth, and across for its rate (or, synced, through the per-cycle choices). Dragging
+// one that's off switches it on.
+export function LfoDisplay({ tab }: { tab: ModTabSpec }) {
+  const settings = useSynth((s) => s.settings);
+  const lfo = tab.lfo!;
+  const synced = !!lfo.sync && !!lfo.switch && settings[lfo.switch] === "sync";
+  const rateId = synced ? lfo.sync! : lfo.rate;
+  const depthParam = numberParam(lfo.depth);
+  const active = lfoOn(tab, settings);
+  const ref = useCanvas(
+    (canvas, width, height) =>
+      drawLfo(canvas, width, height, {
+        shape: lfo.shape ? String(settings[lfo.shape]) : (lfo.fixedShape ?? "sine"),
+        skew: lfo.skew ? Number(settings[lfo.skew]) : 0.5,
+        periods: Math.max(0.25, Number(settings[rateId])),
+        depth: Number(settings[lfo.depth]) / depthParam.max,
+        active,
+        window: synced ? "1 cycle" : "1 s",
+      }),
+    [settings, tab, active],
+  );
+  const start = useRef<{ x: number; y: number; rate: number; depth: number } | null>(null);
+  const handlers = dragHandlers(
+    (event) => {
+      setSettings(enableLfo(tab, useSynth.getState().settings));
+      const now = useSynth.getState().settings;
+      const rate = getParam(rateId)!;
+      start.current = {
+        x: event.clientX,
+        y: event.clientY,
+        rate: rate.kind === "number" ? toDial(rate, Number(now[rateId])) : choiceIndex(rate, now[rateId]),
+        depth: toDial(depthParam, Number(now[lfo.depth])),
+      };
+    },
+    (event) => {
+      const from = start.current;
+      if (!from) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const rate = getParam(rateId)!;
+      const across = (event.clientX - from.x) / Math.max(40, rect.width);
+      if (rate.kind === "number") setSetting(rateId, fromDial(rate, from.rate + across));
+      else if (rate.kind === "choice") {
+        const i = Math.round(from.rate + across * rate.options.length);
+        setSetting(rateId, rate.options[Math.min(rate.options.length - 1, Math.max(0, i))].value);
+      }
+      setSetting(lfo.depth, fromDial(depthParam, from.depth + (from.y - event.clientY) / Math.max(40, rect.height - FOOT)));
+    },
+  );
+  return <canvas ref={ref} className="synth-display editable" title="Drag: up and down for depth, across for rate" {...handlers} />;
+}
+
+// Where a value sits among a choice's options (the synced rates), or 0.
+function choiceIndex(param: Param, value: Value): number {
+  if (param.kind !== "choice") return 0;
+  return Math.max(0, param.options.findIndex((o) => o.value === value));
 }

@@ -18,6 +18,8 @@ import {
   patchCode,
   savePatch,
   serializeSynthFile,
+  parseChord,
+  shiftChord,
   shiftOctave,
 } from "./patch";
 
@@ -179,7 +181,28 @@ describe("shiftOctave", () => {
     expect(shiftOctave("c3", 1)).toBe("c4");
     expect(shiftOctave("a#", -1)).toBe("a#2");
     expect(shiftOctave("eb0", -1)).toBe("eb0");
-    expect(shiftOctave("60", 1)).toBe("60");
+    expect(shiftOctave("x", 1)).toBe("x");
+  });
+
+  it("moves a MIDI number by 12", () => {
+    expect(shiftOctave("60", 1)).toBe("72");
+    expect(shiftOctave("120", 1)).toBe("127");
+  });
+});
+
+describe("chords", () => {
+  it("reads notes separated by spaces, commas or mini-notation's brackets", () => {
+    expect(parseChord("c3 e3 g3")).toEqual(["c3", "e3", "g3"]);
+    expect(parseChord("c3,e3, g3")).toEqual(["c3", "e3", "g3"]);
+    expect(parseChord("[c3,eb3,g3]")).toEqual(["c3", "eb3", "g3"]);
+    expect(parseChord("60 64")).toEqual([60, 64]);
+    expect(parseChord("  ")).toEqual(["c3"]);
+  });
+
+  it("shifts every note, keeping how the chord was written", () => {
+    expect(shiftChord("c3 e3 g3", 1)).toBe("c4 e4 g4");
+    expect(shiftChord("[c3,eb3,g3]", -1)).toBe("[c2,eb2,g2]");
+    expect(shiftChord("60, a", 1)).toBe("72, a4");
   });
 });
 
@@ -189,5 +212,57 @@ describe("saved patches from before the two filters", () => {
     expect(old({ filter: "lp", freq: 800, q: 6, fenv: 2, fattack: 0.1 })).toMatchObject({ lp: "on", cutoff: 800, resonance: 6, lpenv: 2, lpattack: 0.1, hp: "off" });
     expect(old({ filter: "hp", freq: 300, q: 2 })).toMatchObject({ hp: "on", hcutoff: 300, hresonance: 2, lp: "off" });
     expect(old({ filter: "off", freq: 300 })).toMatchObject({ lp: "off", hp: "off", cutoff: 20000 });
+  });
+});
+
+describe("modulation", () => {
+  it("writes nothing extra by default", () => {
+    expect(Object.keys(patchControls(DEFAULT_SETTINGS))).toEqual(["s", "wt", "unison", "attack", "decay", "sustain", "release"]);
+  });
+
+  it("writes an LFO's rate in Hz or synced, with its depth and shape, only while it's on", () => {
+    expect(patchControls(settings({ amplfo: "hz", tremolo: 6 }))).toMatchObject({ tremolo: 6, tremolodepth: 0.5, tremoloshape: "sine" });
+    const synced = patchControls(settings({ amplfo: "sync", tremolosync: 4 }));
+    expect(synced).toMatchObject({ tremolosync: 4 });
+    expect(synced).not.toHaveProperty("tremolo");
+    expect(patchControls(settings({ amplfo: "off", tremolo: 6 }))).not.toHaveProperty("tremolo");
+  });
+
+  it("writes the filter LFO only with the lowpass on", () => {
+    expect(patchControls(settings({ filterlfo: "hz" }))).not.toHaveProperty("lprate");
+    expect(patchControls(settings({ lp: "on", filterlfo: "hz", lprate: 3 }))).toMatchObject({ lprate: 3, lpdepth: 1, lpshape: "sine" });
+  });
+
+  it("writes the position envelope and LFO for wavetables only", () => {
+    expect(patchControls(settings({ wtenv: 0.5 }))).toMatchObject({ wtenv: 0.5, wtattack: 0, wtdecay: 0.5, wtsustain: 0, wtrelease: 0.1 });
+    expect(patchControls(settings({ s: "sawtooth", wtenv: 0.5, poslfo: "hz" }))).not.toHaveProperty("wtenv");
+    expect(patchControls(settings({ poslfo: "sync", wtsync: 2 }))).toMatchObject({ wtsync: 2, wtdepth: 0.5 });
+  });
+
+  it("writes the FM envelope when it's on and there's FM", () => {
+    expect(patchControls(settings({ fmenvon: "on" }))).not.toHaveProperty("fmattack");
+    expect(patchControls(settings({ fmi: 4, fmenvon: "on" }))).toMatchObject({ fmi: 4, fmattack: 0.001, fmdecay: 0.3, fmsustain: 0, fmrelease: 0.1 });
+    expect(patchControls(settings({ fmi: 4, fmenvon: "on", fmenv: "lin" }))).toMatchObject({ fmenv: "lin" });
+  });
+
+  it("writes the warp mode when the warp's envelope or LFO moves it from 0", () => {
+    expect(patchControls(settings({ warpmode: "fold" }))).not.toHaveProperty("warpmode");
+    expect(patchControls(settings({ warpmode: "fold", warpenv: 0.5 }))).toMatchObject({ warpmode: "fold", warpenv: 0.5 });
+    expect(patchControls(settings({ warpmode: "fold", warplfo: "hz" }))).toMatchObject({ warpmode: "fold", warprate: 2 });
+  });
+
+  it("writes a pulse's width LFO", () => {
+    expect(patchControls(settings({ s: "pulse", pwlfo: "on" }))).toMatchObject({ pwrate: 1, pwsweep: 0.3 });
+    expect(patchControls(settings({ s: "sine", pwlfo: "on" }))).not.toHaveProperty("pwrate");
+  });
+
+  it("writes the phaser under superdough's name for it, while its rate isn't 0", () => {
+    expect(patchControls(settings({ phaserrate: 2 }))).toMatchObject({ phaserrate: 2, phaserdepth: 0.75, phasersweep: 2000 });
+    expect(patchControls(settings({ phaserdepth: 1 }))).not.toHaveProperty("phaserdepth");
+  });
+
+  it("puts the modulation on a line of its own", () => {
+    const code = patchCode({ name: "pad", settings: settings({ amplfo: "sync", tremolosync: 4 }) });
+    expect(code).toContain("\n  tremolosync: 4, tremolodepth: 0.5, tremoloshape: 'sine',\n");
   });
 });

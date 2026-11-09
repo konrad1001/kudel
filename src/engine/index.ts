@@ -513,7 +513,7 @@ const loadedTables = new Set<string>();
 // wavetable), so superdough finds it cached. Its own loading happens after the start
 // time is fixed, and a note whose file arrives late is skipped. Other sounds need
 // nothing loaded; an unknown one is left for superdough to report.
-async function loadSoundFor(value: { note?: string; s: string; n?: unknown }): Promise<void> {
+async function loadSoundFor(value: { note?: string | number; s: string; n?: unknown }): Promise<void> {
   const sound = webaudio.getSound(value.s);
   const data = sound?.data;
   if (data?.type === "sample") await webaudio.getSampleBuffer(value, data.samples);
@@ -551,24 +551,27 @@ export interface ControlsAudition {
   // Strudel controls by their main names, as note("…").set(controls) would play them.
   // Must include s.
   controls: Record<string, number | string | number[]> & { s: string };
-  // Mini-notation note name, e.g. "c3".
-  note: string;
-  // Seconds the note is held; its release follows.
+  // The notes to play together: names like "c3", or MIDI numbers. One is a single note,
+  // several a chord.
+  notes: (string | number)[];
+  // Seconds the notes are held; their release follows.
   duration: number;
 }
 
-// Plays one note with exactly these controls (the Synth view's patch), the way a hap
-// with them would play: nothing added, so the patch's own envelope and effects are
-// heard. Like auditionNote it's outside the scheduler, and the start time is taken
-// once the sound is loaded. The tempo is the scheduler's, for delaysync and the like.
-export async function auditionControls({ controls, note, duration }: ControlsAudition): Promise<void> {
+// Plays notes with exactly these controls (the Synth view's patch), the way haps with
+// them would play: nothing added, so the patch's own envelope and effects are heard.
+// Like auditionNote it's outside the scheduler, and the start time is taken once every
+// note's sound is loaded, so a chord starts together. The tempo is the scheduler's, for
+// delaysync and the like.
+export async function auditionControls({ controls, notes, duration }: ControlsAudition): Promise<void> {
   if (!mirror) return;
   await mirror.prebaked;
   await ensureAudio();
-  const value = { ...controls, note };
-  await loadSoundFor(value);
-  const now = webaudio.getAudioContext().currentTime;
-  await webaudio.superdough(value, now + CONTROLS_AUDITION_LATENCY, duration, mirror.repl.scheduler.cps);
+  const values = notes.map((note) => ({ ...controls, note }));
+  await Promise.all(values.map((value) => loadSoundFor(value)));
+  const at = webaudio.getAudioContext().currentTime + CONTROLS_AUDITION_LATENCY;
+  const cps = mirror.repl.scheduler.cps;
+  await Promise.all(values.map((value) => webaudio.superdough(value, at, duration, cps)));
 }
 
 // More headroom than a key press needs: the first note of a just-loaded wavetable took
