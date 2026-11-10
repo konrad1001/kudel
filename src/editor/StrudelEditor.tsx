@@ -5,6 +5,7 @@ import { DEFAULT_EDITOR_SETTINGS } from "../settings/defaults";
 import { SAMPLE_DROP_EVENT, sampleDrop, type SampleDropEvent } from "./sampleDrop";
 import { trackCurrentView } from "./currentView";
 import { scrub } from "./scrub";
+import { blockControls } from "./blocks";
 import { TERMINAL_THEME, terminalTheme, terminalThemeSettings } from "./terminalTheme";
 
 // `hidden` while no document is open; the editor stays mounted so its state survives.
@@ -17,7 +18,7 @@ export function StrudelEditor({ hidden }: { hidden: boolean }) {
     engine.registerTheme(TERMINAL_THEME, terminalTheme, terminalThemeSettings);
     engine.init({
       editorSettings: DEFAULT_EDITOR_SETTINGS,
-      extensions: [trackCurrentView(), sampleDrop(), scrub()],
+      extensions: [trackCurrentView(), sampleDrop(), scrub(), blockControls()],
     });
     return engine.attach(host);
   }, []);

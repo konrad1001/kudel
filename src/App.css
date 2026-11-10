@@ -994,6 +994,57 @@ body {
   cursor: ew-resize !important;
 }
 
+/* [▶][M][S] beside each labelled block (src/editor/blocks.ts). Dim until lit: ▶ in
+   --playing while the block is heard, amber while it plays an earlier text, half-lit
+   while it plays but isn't heard; M and S lit while the label mutes or solos it. */
+.strudel-root .cm-editor .cm-blockGutter .cm-gutterElement {
+  padding: 0 6px 0 2px;
+}
+
+.strudel-root .cm-editor .cm-blockButtons {
+  display: inline-flex;
+  gap: 1px;
+  user-select: none;
+}
+
+.strudel-root .cm-editor .cm-blockButton {
+  cursor: pointer;
+  padding: 0 2px;
+  color: var(--gutterForeground, #3c3c3c);
+}
+
+.strudel-root .cm-editor .cm-blockButton:hover {
+  color: var(--foreground);
+  background-color: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.strudel-root .cm-editor .cm-block-play.on {
+  color: var(--playing);
+}
+
+.strudel-root .cm-editor .cm-block-play.held {
+  color: color-mix(in srgb, var(--playing) 45%, transparent);
+}
+
+.strudel-root .cm-editor .cm-block-play.edited {
+  color: #e5c07b;
+}
+
+.strudel-root .cm-editor .cm-block-mute.on {
+  color: #0c0c0c;
+  background-color: #e5c07b;
+}
+
+.strudel-root .cm-editor .cm-block-solo.on {
+  color: #0c0c0c;
+  background-color: #5fd7d7;
+}
+
+/* A block just played with ▶, for a moment. */
+.strudel-root .cm-editor .cm-blockFlash {
+  background-color: color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+
 /* The line a syntax error points at, in the editor. Outranks the active line. */
 .strudel-root .cm-editor .cm-errorLine {
   background-color: #f14c4c1f;

@@ -3,11 +3,13 @@ import { Decoration, EditorView } from "@codemirror/view";
 import * as engine from "../engine";
 import type { Command } from "../commands/commands";
 import { currentView } from "./currentView";
+import { quietCodeAt } from "./blocks";
 import { numberAt, PX_PER_STEP, stepNumber, type NumberLiteral } from "./scrubNumber";
 
 // Number scrubbing: Alt+drag a number left or right, Alt+wheel over it, or Ctrl+Alt+↑/↓
 // at the cursor. Each step is a small edit to the code, re-evaluated quietly when the
-// document is the one playing (engine.evaluateQuietly). The steps stay out of the undo
+// document is the one playing (engine.evaluateQuietly): the block it's in, or only the
+// code outside blocks, with the other blocks left playing as they are (blocks.ts). The steps stay out of the undo
 // history; when the gesture ends, the whole change becomes one undoable edit.
 
 // One gesture on one number. `from`/`to` track the number as it's rewritten.
@@ -41,7 +43,7 @@ function write(session: Session, text: string): void {
   });
   session.to = session.from + text.length;
   session.text = text;
-  engine.evaluateQuietly();
+  engine.evaluateQuietly(quietCodeAt(session.view, session.from));
 }
 
 // Turns the gesture into one undoable edit: put the original back and make the whole

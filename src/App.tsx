@@ -4,6 +4,7 @@ import { registerCommands } from "./commands/commands";
 import { useKeyboard } from "./commands/useKeyboard";
 import { SCRUB_COMMANDS } from "./editor/scrub";
 import { SLIDER_COMMANDS } from "./editor/sliderToggle";
+import { BLOCK_COMMANDS } from "./editor/blocks";
 import { StrudelEditor } from "./editor/StrudelEditor";
 import { FILE_COMMANDS } from "./files/actions";
 import { useTabs } from "./files/tabsStore";
@@ -66,6 +67,7 @@ registerCommands([
   ...STATUS_COMMANDS,
   ...SCRUB_COMMANDS,
   ...SLIDER_COMMANDS,
+  ...BLOCK_COMMANDS,
 ]);
 
 registerViews([
@@ -99,7 +101,7 @@ const MENUS: Menu[] = [
       ["editor.next", "editor.previous"],
     ],
   },
-  { label: "Run", groups: [["run.play", "run.stop"], ["run.revealError"]] },
+  { label: "Run", groups: [["run.play", "run.stop"], ["run.playBlock", "run.muteBlock", "run.soloBlock"], ["run.revealError"]] },
 ];
 
 // The ways to get a file open, listed where the editor would be.

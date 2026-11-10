@@ -34,6 +34,10 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+Enter", command: "run.play" },
   { key: "Ctrl+.", command: "run.stop" },
   { key: "F8", command: "run.revealError" },
+  // The labelled block (`$: …`) at the cursor; also its [▶][M][S] in the editor's gutter.
+  { key: "Ctrl+Shift+Enter", command: "run.playBlock", when: "editorFocus" },
+  { key: "Ctrl+Alt+M", command: "run.muteBlock", when: "editorFocus" },
+  { key: "Ctrl+Alt+O", command: "run.soloBlock", when: "editorFocus" },
   // Number scrubbing from the keyboard (Alt+drag and Alt+wheel do it with the mouse).
   { key: "Ctrl+Alt+ArrowUp", command: "editor.increaseNumber", when: "editorFocus" },
   { key: "Ctrl+Alt+ArrowDown", command: "editor.decreaseNumber", when: "editorFocus" },

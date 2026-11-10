@@ -54,10 +54,16 @@ const sampleLoads = new Map<string, number>();
 // draw attention to.
 export type EvaluatedListener = (docId: string | null, code: string, quiet: boolean) => void;
 const evaluatedListeners = new Set<EvaluatedListener>();
+// Called as each evaluation starts, with the code it evaluates: the document's text, or
+// what evaluateCode or evaluateQuietly was given.
+export type EvaluatingListener = (docId: string | null, code: string) => void;
+const evaluatingListeners = new Set<EvaluatingListener>();
 // A scrub re-evaluation is running; another is wanted once it finishes.
 let quietRun: Promise<void> | undefined;
 let quietAgain = false;
 let evaluatingQuietly = false;
+// What the next quiet evaluation evaluates, read when it runs.
+let quietCode: (() => string) | undefined;
 // A normal evaluation (Ctrl+Enter) is running, which read the text when it started; a
 // quiet one asked for meanwhile runs after it, on the latest text.
 let loudRun: Promise<void> | undefined;
@@ -275,7 +281,7 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
     initialCode: "",
     prebake,
     beforeEval: ensureAudio,
-    transpiler,
+    transpiler: transpileInEditor,
     defaultOutput: webaudio.webaudioOutput,
     getTime: () => webaudio.getAudioContext().currentTime,
     onUpdateState: (state: { evalError?: Error }) => {
@@ -328,19 +334,7 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
   // keymap (Alt+Enter) and vim's :w. Record which document it evaluates before
   // anything async happens. Wrapping the instance's method, not patching the package.
   const evaluateShown = mirror.evaluate.bind(mirror);
-  mirror.evaluate = (autostart?: boolean) => {
-    evaluatingDoc = shownDoc;
-    const run = evaluateShown(autostart);
-    loudRun = run;
-    void run.finally(() => {
-      if (loudRun === run) loudRun = undefined;
-      if (quietAfterLoud && !loudRun) {
-        quietAfterLoud = false;
-        evaluateQuietly();
-      }
-    });
-    return run;
-  };
+  mirror.evaluate = (autostart?: boolean) => runLoud(mirror!.code, () => evaluateShown(autostart));
 
   // After a hot reload, bring back the documents the previous instance had open.
   const carried: CarriedDocs | undefined = import.meta.hot?.data.docs;
@@ -353,6 +347,41 @@ export function init({ editorSettings, extensions = [] }: InitOptions): void {
 interface CarriedDocs {
   codes: Record<string, string>;
   shown: string | null;
+}
+
+// A normal evaluation of the shown document: `run` evaluates `code`. A quiet one asked
+// for meanwhile runs once it finishes.
+function runLoud(code: string, run: () => Promise<void>): Promise<void> {
+  evaluatingDoc = shownDoc;
+  evaluatingListeners.forEach((listener) => listener(evaluatingDoc, code));
+  const started = run();
+  loudRun = started;
+  void started.finally(() => {
+    if (loudRun === started) loudRun = undefined;
+    if (quietAfterLoud && !loudRun) {
+      quietAfterLoud = false;
+      evaluateQuietly(quietCode);
+    }
+  });
+  return started;
+}
+
+// What the transpiler gives back: the code to run, and where its mini-notation strings,
+// sliders and other widgets (scope, pianoroll, ...) are in the code it was given.
+interface Transpiled {
+  output: string;
+  widgets?: { type: string; from?: number; to: number }[];
+}
+
+// Code given to evaluateCode can run past the end of the document (src/editor/
+// blockCode.ts puts text there that isn't in the editor). StrudelMirror places a slider
+// or widget for everything the transpiler reports, and one past the end throws as it's
+// drawn, so those are left out. Its highlights already skip what's past the end.
+function transpileInEditor(code: string, options?: Record<string, unknown>): Transpiled {
+  const result = transpiler(code, options) as Transpiled;
+  const end = mirror?.editor.state.doc.length;
+  if (end === undefined || code.length <= end || !result.widgets) return result;
+  return { ...result, widgets: result.widgets.filter((w) => (w.type === "slider" ? (w.from ?? w.to) : w.to) <= end) };
 }
 
 // Calls `listener` with the document and its full text after every edit, whether made
@@ -371,6 +400,15 @@ export function onError(listener: ErrorListener): () => void {
   listener(shownError);
   return () => {
     errorListeners.delete(listener);
+  };
+}
+
+// Calls `listener` as every evaluation starts, with the document and the code being
+// evaluated. Returns an unsubscribe function.
+export function onEvaluating(listener: EvaluatingListener): () => void {
+  evaluatingListeners.add(listener);
+  return () => {
+    evaluatingListeners.delete(listener);
   };
 }
 
@@ -424,6 +462,14 @@ export async function evaluate(): Promise<void> {
   await mirror?.evaluate();
 }
 
+// Evaluates `code` in place of the shown document's text, without the flash: part of
+// it (one block, src/editor/blocks.ts), worked out from its text. Positions in `code`
+// are taken as positions in the document, for highlights and errors.
+export async function evaluateCode(code: string): Promise<void> {
+  const repl = mirror?.repl;
+  if (repl) await runLoud(code, async () => void (await repl.evaluate(code)));
+}
+
 export async function stop(): Promise<void> {
   await mirror?.stop();
 }
@@ -431,8 +477,11 @@ export async function stop(): Promise<void> {
 // Re-evaluates the shown document after number scrubbing changed it, if it's the one
 // playing; otherwise the edit is only text. No flash: it runs the repl directly rather
 // than StrudelMirror's evaluate. One run at a time: changes made during a run are
-// evaluated together, from the latest text, once it finishes.
-export function evaluateQuietly(): void {
+// evaluated together, from the latest text, once it finishes. `code` gives what to
+// evaluate in place of the whole text, as evaluateCode takes it; it's called when the
+// run starts, and the latest one given is used.
+export function evaluateQuietly(code?: () => string): void {
+  quietCode = code;
   if (loudRun) {
     quietAfterLoud = true;
     return;
@@ -448,8 +497,10 @@ export function evaluateQuietly(): void {
       quietAgain = false;
       evaluatingDoc = shownDoc;
       evaluatingQuietly = true;
+      const code = quietCode?.() ?? mirror.code;
+      evaluatingListeners.forEach((listener) => listener(evaluatingDoc, code));
       try {
-        await repl.evaluate(mirror.code);
+        await repl.evaluate(code);
       } finally {
         evaluatingQuietly = false;
       }
@@ -857,6 +908,12 @@ export function closeDoc(id: string): void {
   if (id === shownDoc) showDoc(null);
   docs.delete(id);
   if (id === playingDoc) void stop();
+}
+
+// Applies state effects to a document, shown or not (for a StateField an editor
+// extension keeps per document).
+export function dispatchEffects(docId: string, effects: StateEffect<unknown>[]): void {
+  updateDoc(docId, { effects });
 }
 
 // Applies edits to a document, shown or not, as one undoable step. Positions refer to
