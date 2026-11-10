@@ -145,6 +145,15 @@ export function parseChord(text: string): (string | number)[] {
   return notes.map((note) => (/^\d+$/.test(note) ? Number(note) : note));
 }
 
+// The octave the note field is in, for the letter keys: the first note's, from its name
+// ("c3", "eb2") or its MIDI number (60 is octave 4). 3 when there's none.
+export function chordOctave(text: string): number {
+  const first = parseChord(text)[0];
+  if (typeof first === "number") return Math.floor(first / 12) - 1;
+  const match = /^[a-g](?:#|b|s|f)*(-?\d+)$/i.exec(first);
+  return match ? Number(match[1]) : 3;
+}
+
 // Every note of a chord an octave or more up or down, keeping how it was written.
 export function shiftChord(text: string, step: number): string {
   return text

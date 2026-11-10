@@ -19,6 +19,7 @@ import { useDrumsLink } from "../drums/codeLink";
 import { identifierFor } from "../synth/patch";
 import { useSounds } from "../sounds/soundsStore";
 import { CommandButton, nameWarning } from "./CommandButton";
+import { focusPanelOf, keepFocusOnPanel } from "./panelFocus";
 import { dragCode, SavedList } from "./SavedList";
 
 // The Drums view: a 16-step grid, a row per sound. The loop is heard with play (a
@@ -28,7 +29,7 @@ export function Drums() {
   // The preview is part of the view: leaving it stops the loop.
   useEffect(() => stopPreview, []);
   return (
-    <div className="drums" tabIndex={0} data-autofocus onFocus={engine.warmUpAudio}>
+    <div className="drums" tabIndex={0} data-autofocus onFocus={engine.warmUpAudio} onMouseDown={keepFocusOnPanel}>
       <Toolbar />
       <div className="drums-body">
         <section className="drums-saved">
@@ -79,7 +80,10 @@ function Toolbar() {
       <CommandButton command="drums.clear">clear</CommandButton>
       <label className="drums-field">
         kit
-        <select className="synth-select drums-bank" value={bank} onChange={(event) => setBank(event.target.value)} title="bank: the drum machine the rows play">
+        <select className="synth-select drums-bank" value={bank} onChange={(event) => {
+            setBank(event.target.value);
+            focusPanelOf(event.currentTarget);
+          }} title="bank: the drum machine the rows play">
           <option value="">default</option>
           {banks.map((b) => (
             <option key={b}>{b}</option>

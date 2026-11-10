@@ -5,7 +5,8 @@ import { isTextField, registerContextKey } from "../commands/when";
 import { appFile } from "../files/appFile";
 import { showView } from "../layout/layoutStore";
 import { getParam, normalize, patchControls, type Settings, type Value } from "./controls";
-import { defaultPatch, parseSynthFile, patchCode, savePatch, serializeSynthFile, shiftChord, parseChord, type Patch } from "./patch";
+import { defaultPatch, parseSynthFile, patchCode, savePatch, serializeSynthFile, shiftChord, parseChord, chordOctave, type Patch } from "./patch";
+import { KEY_LETTERS, noteName } from "../keys/notes";
 import type { ModTab, ModView } from "./mod";
 
 // The Synth view. The patch being edited is UI state like the Keys view's sound: playing
@@ -132,6 +133,17 @@ export function play(): void {
   });
 }
 
+// Plays the note `semitone` steps above C in the note field's octave, with the patch, for
+// `len` seconds: the letter keys, laid out as in the Keys view (A is C, W is C#, …).
+export function playKey(semitone: number): void {
+  const { settings, note, length } = get();
+  set({ error: null });
+  const controls = patchControls(settings) as Record<string, Value> & { s: string };
+  engine.auditionControls({ controls, notes: [noteName(chordOctave(note), semitone)], duration: length }).catch((err: unknown) => {
+    set({ error: err instanceof Error ? err.message : String(err) });
+  });
+}
+
 const flash = (key: "copied" | "justSaved") => {
   set({ [key]: true });
   setTimeout(() => set({ [key]: false }), 1200);
@@ -193,6 +205,10 @@ export const synthFile = appFile({
 export const SYNTH_COMMANDS: Command[] = [
   { id: "view.synth", label: "Show Synth", run: () => showView("synth", { focus: true }) },
   { id: "synth.play", label: "Play Synth", run: play },
+  // The letter keys (A W S E D F T G Y H U J K), in the note field's octave.
+  ...KEY_LETTERS.map((_, semitone) => ({ id: `synth.key${semitone}`, label: `Play Synth Key ${semitone}`, run: () => playKey(semitone) })),
+  { id: "synth.octaveDown", label: "Synth Octave Down", run: () => shiftNoteOctave(-1) },
+  { id: "synth.octaveUp", label: "Synth Octave Up", run: () => shiftNoteOctave(1) },
   { id: "synth.copy", label: "Copy Synth Code", run: () => void copyCode() },
   { id: "synth.save", label: "Save Synth", run: save },
 ];

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { KEY_LETTERS } from "../keys/notes";
 import { evaluateWhen } from "./when";
 
 export interface KeyBinding {
@@ -66,6 +67,10 @@ export const DEFAULT_KEYBINDINGS: KeyBinding[] = [
   { key: "Ctrl+C", command: "sample.copyCode", when: "sampleFocus" },
   { key: "Space", command: "synth.play", when: "synthFocus" },
   { key: "Ctrl+C", command: "synth.copy", when: "synthFocus" },
+  // The Synth view's letter keys play its patch, laid out as in the Keys view.
+  ...KEY_LETTERS.map((letter, semitone) => ({ key: letter, command: `synth.key${semitone}`, when: "synthFocus" })),
+  { key: "N", command: "synth.octaveDown", when: "synthFocus" },
+  { key: "M", command: "synth.octaveUp", when: "synthFocus" },
   { key: "Space", command: "drums.playStop", when: "drumsFocus" },
   { key: "Ctrl+C", command: "drums.copy", when: "drumsFocus" },
   { key: "Escape", command: "view.focusEditor", when: "panelFocus" },

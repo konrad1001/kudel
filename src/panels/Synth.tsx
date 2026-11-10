@@ -17,6 +17,7 @@ import {
 import { identifierFor, patchCode } from "../synth/patch";
 import { tidyLinkedObject, useCodeLink } from "../synth/codeLink";
 import { CommandButton, nameWarning } from "./CommandButton";
+import { focusPanelOf, keepFocusOnPanel } from "./panelFocus";
 import { dragCode, SavedList } from "./SavedList";
 import {
   open,
@@ -45,7 +46,7 @@ import { availableTabs, enableEnvelope, lfoDials, modulated, viewFor, type ModTa
 // reaches the code as text: copied, or dragged into the editor.
 export function Synth() {
   return (
-    <div className="synth" tabIndex={0} data-autofocus onFocus={engine.warmUpAudio}>
+    <div className="synth" tabIndex={0} data-autofocus onFocus={engine.warmUpAudio} onMouseDown={keepFocusOnPanel}>
       <Toolbar />
       <div className="synth-columns">
         <NoteAndSaved />
@@ -532,6 +533,8 @@ function Choice({ id }: { id: string }) {
         // Option values are strings; give numeric choices (delay time) their number back.
         const picked = param.options.find((o) => String(o.value) === event.target.value);
         setSetting(id, picked ? picked.value : event.target.value);
+        // Back to the panel, so Space plays rather than reopening the dropdown.
+        focusPanelOf(event.currentTarget);
       }}
     >
       {id === "s" ? (

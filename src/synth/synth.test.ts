@@ -18,6 +18,7 @@ import {
   patchCode,
   savePatch,
   serializeSynthFile,
+  chordOctave,
   parseChord,
   shiftChord,
   shiftOctave,
@@ -197,6 +198,14 @@ describe("chords", () => {
     expect(parseChord("[c3,eb3,g3]")).toEqual(["c3", "eb3", "g3"]);
     expect(parseChord("60 64")).toEqual([60, 64]);
     expect(parseChord("  ")).toEqual(["c3"]);
+  });
+
+  it("knows the octave of the first note, for the letter keys", () => {
+    expect(chordOctave("c3 e3 g3")).toBe(3);
+    expect(chordOctave("[eb2,g2]")).toBe(2);
+    expect(chordOctave("60 64")).toBe(4);
+    expect(chordOctave("")).toBe(3);
+    expect(chordOctave("a")).toBe(3);
   });
 
   it("shifts every note, keeping how the chord was written", () => {
